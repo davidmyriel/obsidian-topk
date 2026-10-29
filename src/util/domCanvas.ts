@@ -23,9 +23,23 @@ export const domCanvasFactory: CanvasFactory = (width, height) => {
 					quality,
 				);
 			}),
+		drawImage: (source, w, h) => context.drawImage(source as CanvasImageSource, 0, 0, w, h),
 		release: () => {
 			canvas.width = 0;
 			canvas.height = 0;
 		},
 	};
 };
+
+/** Decodes PNG, JPEG or WebP bytes in the renderer for RenderEnv.decodeImage. */
+export async function domDecodeImage(bytes: Uint8Array, mime: string) {
+	const bitmap = await createImageBitmap(
+		new Blob([bytes as Uint8Array<ArrayBuffer>], { type: mime }),
+	);
+	return {
+		width: bitmap.width,
+		height: bitmap.height,
+		source: bitmap,
+		close: () => bitmap.close(),
+	};
+}

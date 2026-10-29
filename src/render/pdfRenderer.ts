@@ -34,6 +34,8 @@ export interface RenderCanvas {
 	context: unknown;
 	/** Encodes the canvas. quality applies to JPEG only, 0..1. */
 	encode(format: ImageFormat, quality: number): Promise<Uint8Array>;
+	/** Draws a decoded image (see DecodedImage.source) scaled to the given size at 0,0. */
+	drawImage(source: unknown, width: number, height: number): void;
 	/** Frees the backing memory, e.g. by setting width and height to 0. */
 	release(): void;
 }
@@ -82,6 +84,24 @@ export function scaleForLongSide(viewport: PdfViewport, longSide: number): numbe
 }
 
 const QUALITY_STEPS = [0.85, 0.75, 0.65, 0.5];
+
+/** Opens a PDF just long enough to read its page count. */
+export async function countPdfPages(
+	pdfjs: PdfJsLike,
+	data: Uint8Array,
+	documentOptions: Record<string, unknown> = {},
+): Promise<number> {
+	const task = pdfjs.getDocument({
+		...documentOptions,
+		data: data.slice(),
+		isEvalSupported: false,
+	});
+	try {
+		return (await task.promise).numPages;
+	} finally {
+		await task.destroy();
+	}
+}
 
 export async function* renderPdfPages(
 	pdfjs: PdfJsLike,
@@ -136,10 +156,10 @@ export async function* renderPdfPages(
 	}
 }
 
-async function encodeWithinLimit(
+export async function encodeWithinLimit(
 	target: RenderCanvas,
 	page: number,
-	options: RenderOptions,
+	options: Pick<RenderOptions, 'format' | 'quality' | 'maxBytes'>,
 ): Promise<{ bytes: Uint8Array; quality: number }> {
 	if (options.format === 'png') {
 		const bytes = await target.encode('png', 1);

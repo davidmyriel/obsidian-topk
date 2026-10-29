@@ -1,7 +1,7 @@
 // Node implementations of the renderer's injected dependencies, for tests and scripts.
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
-import { createCanvas } from '@napi-rs/canvas';
+import { createCanvas, loadImage, type Image } from '@napi-rs/canvas';
 import type { CanvasFactory, PdfJsLike } from '../../src/render/pdfRenderer';
 
 export async function loadNodePdfJs(): Promise<PdfJsLike> {
@@ -29,9 +29,16 @@ export const nodeCanvasFactory: CanvasFactory = (width, height) => {
 			format === 'png'
 				? new Uint8Array(await canvas.encode('png'))
 				: new Uint8Array(await canvas.encode('jpeg', Math.round(quality * 100))),
+		drawImage: (source, w, h) => context.drawImage(source as Image, 0, 0, w, h),
 		release: () => {
 			canvas.width = 0;
 			canvas.height = 0;
 		},
 	};
 };
+
+/** Node implementation of RenderEnv.decodeImage. */
+export async function nodeDecodeImage(bytes: Uint8Array) {
+	const image = await loadImage(Buffer.from(bytes));
+	return { width: image.width, height: image.height, source: image, close: () => undefined };
+}

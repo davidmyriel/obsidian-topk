@@ -29,3 +29,7 @@ All notable changes to this project are documented here. The format follows
 - `TopKClient` interface with the gRPC implementation (`src/topk/grpcClient.ts`): collection
   create-or-validate, byte-budgeted upsert batches, search, delete, and user-facing error kinds.
   In-memory `FakeTopK` and a local mock TopK gRPC server for tests. Redacting debug logger.
+- Indexer core (`src/indexer`): include folders and exclude globs, persisted index state keyed by
+  content hash, and a pipeline that hashes only changed files, renders PDF pages and images
+  (WebP re-encoded to JPEG), uploads in bounded batches, checkpoints after every file, supports
+  cancel, and makes zero TopK calls when nothing changed. Fixture vault grown to 20 pages.
