@@ -1,0 +1,52 @@
+{
+  "collection": {
+    "name": "smoke-f1ba1b5a",
+    "orgId": "redacted-org",
+    "projectId": "redacted-project",
+    "schema": {
+      "tile": {
+        "dataType": {
+          "integer": {}
+        },
+        "required": true
+      },
+      "vault_id": {
+        "dataType": {
+          "text": {}
+        },
+        "required": true
+      },
+      "page": {
+        "dataType": {
+          "integer": {}
+        },
+        "required": true
+      },
+      "page_image": {
+        "dataType": {
+          "image": {}
+        },
+        "required": true,
+        "index": {
+          "semanticIndex": {
+            "model": "topk/embed-multimodal-v1-2"
+          }
+        }
+      },
+      "kind": {
+        "dataType": {
+          "text": {}
+        },
+        "required": true
+      },
+      "content_hash": {
+        "dataType": {
+          "text": {}
+        },
+        "required": true
+      }
+    },
+    "region": "aws-us-east-1-elastica",
+    "createdAt": "2026-10-29T22:32:12+00:00"
+  }
+}

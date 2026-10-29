@@ -23,3 +23,5 @@ All notable changes to this project are documented here. The format follows
 - Spike D: WebdriverIO + `wdio-obsidian-service` e2e harness booting Obsidian 1.11.4 and latest with
   the fixture vault, opt-in in-Obsidian spike specs, and a Linux `xvfb` e2e job in CI.
   `minAppVersion` set to 1.11.4 for `SecretStorage`. ADR-004 "E2E tooling" (proposed).
+- Live Stage 0 smoke run: hero page at rank 1 at 1024, 1536 and 2048 px. Recorded TopK fixtures
+  (account ids redacted) now drive the contract tests. ADR-003 default long side set to 1024 px.

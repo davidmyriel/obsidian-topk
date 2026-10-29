@@ -1,0 +1,70 @@
+{
+  "results": [
+    {
+      "fields": {
+        "_id": {
+          "string": "44a1c4f6af08073a:3:0"
+        },
+        "score": {
+          "f32": 5.357524871826172
+        },
+        "tile": {
+          "i64": "0"
+        },
+        "kind": {
+          "string": "pdf_page"
+        },
+        "page": {
+          "i64": "3"
+        },
+        "content_hash": {
+          "string": "44a1c4f6af08073a7f47fd723d63a035fa7b327e4163622d214c44968d0a9dd3"
+        }
+      }
+    },
+    {
+      "fields": {
+        "_id": {
+          "string": "44a1c4f6af08073a:1:0"
+        },
+        "content_hash": {
+          "string": "44a1c4f6af08073a7f47fd723d63a035fa7b327e4163622d214c44968d0a9dd3"
+        },
+        "kind": {
+          "string": "pdf_page"
+        },
+        "page": {
+          "i64": "1"
+        },
+        "score": {
+          "f32": 3.108828067779541
+        },
+        "tile": {
+          "i64": "0"
+        }
+      }
+    },
+    {
+      "fields": {
+        "kind": {
+          "string": "pdf_page"
+        },
+        "_id": {
+          "string": "44a1c4f6af08073a:2:0"
+        },
+        "content_hash": {
+          "string": "44a1c4f6af08073a7f47fd723d63a035fa7b327e4163622d214c44968d0a9dd3"
+        },
+        "page": {
+          "i64": "2"
+        },
+        "score": {
+          "f32": 2.9773435592651367
+        },
+        "tile": {
+          "i64": "0"
+        }
+      }
+    }
+  ]
+}

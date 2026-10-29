@@ -3,10 +3,9 @@
 Date: 2026-10-29. Sources: TopK protos at v0.16.1 (`vendor/topk-protos`), the SDK docs in the TopK
 repo at the same tag, the live pages docs.topk.io/limits and topk.io/pricing (read 2026-10-29).
 
-Status: **request shapes settled from the protos and SDK; live recording still pending** because no
-`TOPK_API_KEY` was available in this environment. `npx tsx scripts/smoke.ts --record` records the
-real pairs into `tests/fixtures/topk/`, and the contract tests in
-`tests/contract/topk-fixtures.test.ts` switch on automatically once those files exist.
+Status: **confirmed live on 2026-10-29** in `aws-us-east-1-elastica`. `npx tsx scripts/smoke.ts --record`
+recorded the request/response pairs in `tests/fixtures/topk/` (org and project ids redacted, no
+headers), and `tests/contract/topk-fixtures.test.ts` checks the builders against them byte for byte.
 
 ## Who embeds: TopK, on upsert
 
@@ -83,9 +82,32 @@ TopK**, not only their embeddings. Image fields are not returned by queries but 
 `Get`. PLAN.md's privacy table ("Page images: for embedding; Embeddings: stored") must change to say
 images are stored, and "Remove my data from TopK" deletes them with the collection.
 
-## What the recording will add
+## Live results
 
-Running `scripts/smoke.ts --record` with a key will confirm, with real bytes:
-the create response's echoed schema, that filtering on an unindexed `vault_id` text field works,
-the score value type (`f32` or `f64`), whether `required_lsn` waits for the image embedding, latency
-per step, and the hero page's rank.
+Three fixture pages (JPEG, 1536 px, 23–51 KB each) into a throwaway collection, then the hero query
+"slide with the reranker architecture diagram":
+
+| Step                                      | Result                                                                               | Time         |
+| ----------------------------------------- | ------------------------------------------------------------------------------------ | ------------ |
+| CreateCollection                          | schema echoed back; `page_image` index reports `model: "topk/embed-multimodal-v1-2"` | 110–152 ms   |
+| UpsertDocuments (3 pages, 107 KB request) | `lsn: "1"`                                                                           | 776–1,098 ms |
+| Query with `required_lsn`                 | page 3 score 5.36, page 1 3.09, page 2 2.97                                          | 421–512 ms   |
+| DeleteDocuments, DeleteCollection         | `lsn: "2"`, OK                                                                       | —            |
+
+Confirmed:
+
+- The server-side model is reported as `topk/embed-multimodal-v1-2`, even though the client never
+  sets `SemanticIndex.model`.
+- Filtering on the unindexed `vault_id` text field works.
+- `score` comes back as `f32`. It is an unnormalised MaxSim sum (about 3–5.5 here), so it should not
+  be shown as a percentage.
+- Integers come back as `i64`.
+- Querying at the upsert's `required_lsn` returns the embedded pages straight away. Embedding seems
+  to happen inside the upsert, which explains why it took about a second.
+- Scores differ slightly between identical runs (page 1: 3.091 vs 3.109), probably from quantization,
+  but the ranks were the same in all four runs.
+- Query time includes a fresh TLS + HTTP/2 connection per script run. A long-lived plugin session
+  will be faster; the 1.5 s p95 target looks comfortable.
+
+Still unknown: tokens and cost per page. Nothing in the responses reports usage. The TopK console's
+Usage page for this project after these runs (12 page embeddings in total) may show it.

@@ -57,16 +57,16 @@ canvas buffers; it did not grow with page count.
 5. In Node, pdf.js needs `standardFontDataUrl` to render the standard 14 fonts; Obsidian handles this
    itself.
 
-## Not yet measured: retrieval quality per resolution
+## Retrieval quality per resolution (live, 2026-10-29)
 
-Picking "the smallest size that keeps the hero query at rank 1" needs live TopK. Run, with a key:
+`scripts/smoke.ts --long-side N`, hero query "slide with the reranker architecture diagram":
 
-```
-npx tsx scripts/smoke.ts --long-side 1024
-npx tsx scripts/smoke.ts --long-side 1536
-npx tsx scripts/smoke.ts --long-side 2048
-```
+| Long side | Page 3 (hero) | Page 1 | Page 2 | Hero at rank 1 |
+| --------- | ------------- | ------ | ------ | -------------- |
+| 1024      | 5.23          | 2.94   | 2.70   | yes            |
+| 1536      | 5.36          | 3.09   | 2.97   | yes            |
+| 2048      | 5.42          | 3.35   | 3.06   | yes            |
 
-The fixture slides are simple, so all three may pass; the benchmark corpus (Stage 3) is the real
-test. It would also help to know topk-embed-v1's own input resolution: if TopK downsamples images
-to, say, 1024 px before embedding, larger uploads only cost bandwidth.
+All three pass with nearly the same margin (about 2.1–2.3 points), so on the fixture, resolution
+barely matters. The fixture slides are simple, though, and dense pages (small table text, scans) are
+where resolution should matter. That needs the Stage 3 benchmark corpus.

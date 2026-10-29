@@ -9,8 +9,18 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { toBinary, toJsonString, type DescMessage, type MessageShape } from '@bufbuild/protobuf';
-import { CollectionService } from '../src/topk/gen/topk/control/v1/collection_service_pb';
+import {
+	clone,
+	toBinary,
+	toJsonString,
+	type DescMessage,
+	type MessageShape,
+} from '@bufbuild/protobuf';
+import {
+	CollectionService,
+	CreateCollectionResponseSchema,
+	type CreateCollectionResponse,
+} from '../src/topk/gen/topk/control/v1/collection_service_pb';
 import { QueryService } from '../src/topk/gen/topk/data/v1/query_service_pb';
 import { WriteService } from '../src/topk/gen/topk/data/v1/write_service_pb';
 import { GrpcCode, GrpcError, GrpcTransport, regionOrigin } from '../src/topk/grpc';
@@ -54,6 +64,16 @@ const transport = new GrpcTransport({
 });
 const collection = `smoke-${randomUUID().slice(0, 8)}`;
 const data = { 'x-topk-collection': collection };
+
+/** Copy of a create response without the TopK org and project ids, for committed fixtures. */
+function redactAccount(res: CreateCollectionResponse): CreateCollectionResponse {
+	const copy = clone(CreateCollectionResponseSchema, res);
+	if (copy.collection) {
+		copy.collection.orgId = 'redacted-org';
+		copy.collection.projectId = 'redacted-project';
+	}
+	return copy;
+}
 
 function record<T extends DescMessage>(name: string, schema: T, message: MessageShape<T>): void {
 	if (!values.record) return;
@@ -116,7 +136,7 @@ try {
 	record(
 		'create-collection.response',
 		CollectionService.method.createCollection.output,
-		createRes,
+		redactAccount(createRes),
 	);
 
 	// 3. Upsert the pages; TopK embeds the images server-side.

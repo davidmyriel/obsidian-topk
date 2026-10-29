@@ -1,0 +1,77 @@
+{
+  "query": {
+    "stages": [
+      {
+        "select": {
+          "exprs": {
+            "score": {
+              "functionExpr": {
+                "semanticSimilarity": {
+                  "field": "page_image",
+                  "query": "slide with the reranker architecture diagram"
+                }
+              }
+            },
+            "content_hash": {
+              "logicalExpr": {
+                "field": "content_hash"
+              }
+            },
+            "page": {
+              "logicalExpr": {
+                "field": "page"
+              }
+            },
+            "tile": {
+              "logicalExpr": {
+                "field": "tile"
+              }
+            },
+            "kind": {
+              "logicalExpr": {
+                "field": "kind"
+              }
+            }
+          }
+        }
+      },
+      {
+        "filter": {
+          "expr": {
+            "logicalExpr": {
+              "binaryOp": {
+                "op": "OP_EQ",
+                "left": {
+                  "field": "vault_id"
+                },
+                "right": {
+                  "literal": {
+                    "string": "a37eeac4-09c5-40e8-a74a-a16550f7dd72"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "sort": {
+          "exprs": [
+            {
+              "expr": {
+                "field": "score"
+              },
+              "order": "SORT_ORDER_DESC"
+            }
+          ]
+        }
+      },
+      {
+        "limit": {
+          "k": "20"
+        }
+      }
+    ]
+  },
+  "requiredLsn": "1"
+}

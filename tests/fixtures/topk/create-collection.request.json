@@ -1,0 +1,44 @@
+{
+  "name": "smoke-f1ba1b5a",
+  "schema": {
+    "vault_id": {
+      "dataType": {
+        "text": {}
+      },
+      "required": true
+    },
+    "content_hash": {
+      "dataType": {
+        "text": {}
+      },
+      "required": true
+    },
+    "page": {
+      "dataType": {
+        "integer": {}
+      },
+      "required": true
+    },
+    "tile": {
+      "dataType": {
+        "integer": {}
+      },
+      "required": true
+    },
+    "kind": {
+      "dataType": {
+        "text": {}
+      },
+      "required": true
+    },
+    "page_image": {
+      "dataType": {
+        "image": {}
+      },
+      "required": true,
+      "index": {
+        "semanticIndex": {}
+      }
+    }
+  }
+}

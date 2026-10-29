@@ -1,6 +1,7 @@
 # ADR-002: Embedding and schema
 
-- Status: Proposed (awaiting Dave's approval; one open question for TopK on image billing)
+- Status: Proposed (awaiting Dave's approval; one open question for TopK on image billing).
+  Confirmed live on 2026-10-29: hero page at rank 1, contract fixtures recorded.
 - Date: 2026-10-29
 - Spike: `docs/spikes/B-image-embedding.md`
 
@@ -27,6 +28,9 @@ Collection schema (one collection per vault by default, see open questions):
 | `kind`         | text, required    | none               | `pdf_page`, `image`, `image_tile`                             |
 | `page_image`   | image, required   | `semantic_index()` | JPEG, at most 512 KB                                          |
 
+Scores are `f32` MaxSim sums, not normalised; the UI ranks by them and does not show them as
+percentages.
+
 Search: `select(score = semantic_similarity(page_image, q), content_hash, page, tile, kind)`,
 `filter(vault_id == v)`, `sort(score desc)`, `limit(20)`; the plugin shows the top 10 that still map
 to a file. The optional `text` field with a keyword index stays out until Stage 4's hybrid ranking.
@@ -45,6 +49,9 @@ JPEG quality down, then fails the page), upserts batched to at most 6 MB of requ
 - Stage 4 "Match heatmap" is blocked: no per-token MaxSim scores are returned.
 - Stage 4 "Local encoding" would use a separate schema with a `matrix()` field and
   `multi_vector_distance()`; it is not compatible with this collection.
+- An existing collection's schema cannot be reused unless it has exactly this image field. The
+  plugin creates its own collection on first index, and "Test connection" should check the schema
+  of an existing one.
 - The cost preview's per-page figure is unknown until TopK says how image embedding is billed.
 
 ## Rejected
