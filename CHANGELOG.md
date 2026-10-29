@@ -46,3 +46,6 @@ All notable changes to this project are documented here. The format follows
   opens the PDF at that page (`talk.pdf#page=15`) or the image. Results whose file was deleted are
   dropped. "Save results as note" writes the results as `[[file.pdf#page=N]]` links. E2E covers
   search → click → PDF on page 3, and saving the note.
+- Live test: indexes the 20 fixture pages into a throwaway collection with the real pipeline and
+  checks the hero query ranks first, then deletes the collection. `nightly.yml` runs it with the
+  `TOPK_API_KEY` secret, plus e2e on macOS and Windows.
