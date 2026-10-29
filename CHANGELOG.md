@@ -18,3 +18,5 @@ All notable changes to this project are documented here. The format follows
   search and delete (`src/topk/requests.ts`), `scripts/smoke.ts` with `--record` for live fixtures,
   and contract tests that activate once fixtures are recorded. ADR-002 "Embedding and schema"
   (proposed).
+- Spike C: rendering measurements in Node and inside Obsidian (`scripts/spike-c-render.ts`), DOM
+  canvas factory for Obsidian (`src/util/domCanvas.ts`). ADR-003 "Render settings" (proposed).
