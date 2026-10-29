@@ -19,4 +19,22 @@ jobs:
                   cache: npm
             - run: npm ci
             - run: npm run check
-            - run: npm audit --audit-level=high
+            # Shipped code only: dev-only advisories (WebdriverIO toolchain) are tracked in ADR-004.
+            - run: npm audit --omit=dev --audit-level=high
+
+    e2e-linux:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v6
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: 24.x
+                  cache: npm
+            - run: npm ci
+            - name: Cache Obsidian downloads
+              uses: actions/cache@v4
+              with:
+                  path: .obsidian-cache
+                  key: obsidian-${{ runner.os }}-${{ hashFiles('wdio.conf.mts', 'manifest.json') }}
+            - name: Run e2e under xvfb
+              run: xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" npm run test:e2e

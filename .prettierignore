@@ -5,4 +5,4 @@ src/topk/gen
 vendor
 tests/fixtures
 PLAN.md
-.wdio-obsidian-cache
+.obsidian-cache

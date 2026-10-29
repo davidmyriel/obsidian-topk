@@ -20,3 +20,6 @@ All notable changes to this project are documented here. The format follows
   (proposed).
 - Spike C: rendering measurements in Node and inside Obsidian (`scripts/spike-c-render.ts`), DOM
   canvas factory for Obsidian (`src/util/domCanvas.ts`). ADR-003 "Render settings" (proposed).
+- Spike D: WebdriverIO + `wdio-obsidian-service` e2e harness booting Obsidian 1.11.4 and latest with
+  the fixture vault, opt-in in-Obsidian spike specs, and a Linux `xvfb` e2e job in CI.
+  `minAppVersion` set to 1.11.4 for `SecretStorage`. ADR-004 "E2E tooling" (proposed).

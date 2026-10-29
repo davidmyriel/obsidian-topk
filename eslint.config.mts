@@ -19,13 +19,13 @@ export default defineConfig(
 		'src/topk/gen/**',
 		'vendor/**',
 		'tests/fixtures/**',
-		'.wdio-obsidian-cache/**',
+		'.obsidian-cache/**',
 	]),
 	{
 		languageOptions: {
 			globals: { ...globals.browser },
 			parserOptions: {
-				project: ['./tsconfig.node.json'],
+				project: ['./tsconfig.node.json', './tests/e2e/tsconfig.json'],
 				tsconfigRootDir: import.meta.dirname,
 				extraFileExtensions: ['.json'],
 			},
@@ -59,7 +59,13 @@ export default defineConfig(
 			'vitest.config.ts',
 			'wdio.conf.mts',
 		],
-		languageOptions: { globals: { ...globals.node } },
-		rules: { 'obsidianmd/rule-custom-message': 'off', 'no-console': 'off' },
+		languageOptions: { globals: { ...globals.node, ...globals.mocha } },
+		rules: {
+			'obsidianmd/rule-custom-message': 'off',
+			'obsidianmd/prefer-window-timers': 'off',
+			'import/no-extraneous-dependencies': 'off',
+			'no-console': 'off',
+			'no-undef': 'off',
+		},
 	},
 );

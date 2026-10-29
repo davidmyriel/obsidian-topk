@@ -24,7 +24,6 @@ data.json
 # test and tooling output
 coverage
 .obsidian-cache
-.wdio-obsidian-cache
 bench/report/*
 !bench/report/.gitkeep
 .env
