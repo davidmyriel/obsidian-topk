@@ -1,0 +1,171 @@
+syntax = "proto3";
+package topk.data.v1;
+
+message Value {
+  oneof value {
+    // Boolean
+    bool bool = 1;
+    // Unsigned integer
+    uint32 u32 = 4;
+    uint64 u64 = 5;
+    // Signed integer
+    int32 i32 = 8;
+    int64 i64 = 9;
+    // Floats
+    float f32 = 10;
+    double f64 = 11;
+    // String
+    string string = 12;
+    // Binary
+    bytes binary = 13;
+    // Vector value. Deprecated in favor of `list<f32>` or `list<u8>`.
+    Vector vector = 14 [deprecated = true];
+    // Null
+    Null null = 15;
+    // Sparse vector
+    SparseVector sparse_vector = 16;
+    // List
+    List list = 17;
+    // Struct
+    Struct struct = 18;
+    // Matrix
+    Matrix matrix = 19;
+    // Image
+    Image image = 20;
+  }
+}
+
+message List {
+  message U8 {
+    bytes values = 1;
+  }
+  message I8 {
+    bytes values = 1;
+  }
+  message U32 {
+    repeated uint32 values = 1;
+  }
+  message U64 {
+    repeated uint64 values = 1;
+  }
+  message I32 {
+    repeated int32 values = 1;
+  }
+  message I64 {
+    repeated int64 values = 1;
+  }
+  message F8 {
+    // F8E4M3 format
+    bytes values = 1;
+  }
+  message F16 {
+    uint32 len = 1;
+    repeated fixed32 values = 2;
+  }
+  message F32 {
+    repeated float values = 1;
+  }
+  message F64 {
+    repeated double values = 1;
+  }
+  message String {
+    repeated string values = 1;
+  }
+  oneof values {
+    U32 u32 = 1;
+    U64 u64 = 2;
+    I32 i32 = 3;
+    I64 i64 = 4;
+    F32 f32 = 5;
+    F64 f64 = 6;
+    String string = 7;
+    U8 u8 = 8;
+    I8 i8 = 9;
+    F8 f8 = 10;
+    F16 f16 = 11;
+  }
+}
+
+message Struct {
+  map<string, Value> fields = 1;
+}
+
+message Vector {
+  // Float vector
+  message Float {
+    repeated float values = 1 [deprecated = true];
+  }
+
+  // Byte vector
+  message Byte {
+    bytes values = 1 [deprecated = true];
+  }
+
+  oneof vector {
+    Float float = 1 [deprecated = true];
+    Byte byte = 2 [deprecated = true];
+  }
+}
+
+message SparseVector {
+  // Float32 sparse vector values
+  message F32Values {
+    repeated float values = 1;
+  }
+
+  // U8 sparse vector values
+  message U8Values {
+    bytes values = 1;
+  }
+
+  // Sorted list of value indices
+  repeated uint32 indices = 1;
+  // Vector values
+  oneof values {
+    F32Values f32 = 2;
+    U8Values u8 = 3;
+    List.I8 i8 = 4;
+    List.F16 f16 = 5;
+    List.F8 f8 = 6;
+  }
+}
+
+// Matrix of values stored in row-major order.
+message Matrix {
+  message F32 {
+    repeated float values = 1;
+  }
+  message F16 {
+    uint32 len = 1;
+    repeated fixed32 values = 2;
+  }
+  message F8 {
+    // F8E4M3 format
+    bytes values = 1;
+  }
+  message U8 {
+    bytes values = 1;
+  }
+  message I8 {
+    bytes values = 1;
+  }
+
+  uint32 num_rows = 1;
+  uint32 num_cols = 2;
+  oneof values {
+    F32 f32 = 3;
+    F16 f16 = 4;
+    F8 f8 = 5;
+    U8 u8 = 6;
+    I8 i8 = 7;
+  }
+}
+
+message Null {}
+
+message Image {
+  oneof data {
+    bytes jpeg = 1;
+    bytes png = 2;
+  }
+}

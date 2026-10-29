@@ -1,0 +1,209 @@
+syntax = "proto3";
+package topk.control.v1;
+
+message FieldSpec {
+  FieldType data_type = 1;
+  bool required = 2;
+  FieldIndex index = 3;
+}
+
+message FieldIndex {
+  oneof index {
+    KeywordIndex keyword_index = 1;
+    VectorIndex vector_index = 2;
+    SemanticIndex semantic_index = 3;
+    MultiVectorIndex multi_vector_index = 4;
+    NGramIndex ngram_index = 5;
+  }
+}
+
+// Field data types
+
+message FieldType {
+  oneof data_type {
+    FieldTypeText text = 1;
+    FieldTypeInteger integer = 2;
+    FieldTypeFloat float = 3;
+    FieldTypeBoolean boolean = 4;
+    FieldTypeF32Vector f32_vector = 5;
+    FieldTypeU8Vector u8_vector = 6;
+    FieldTypeBinaryVector binary_vector = 7;
+    FieldTypeBytes bytes = 8;
+    FieldTypeF32SparseVector f32_sparse_vector = 9;
+    FieldTypeU8SparseVector u8_sparse_vector = 10;
+    FieldTypeList list = 11;
+    FieldTypeI8Vector i8_vector = 12;
+    FieldTypeMatrix matrix = 13;
+    FieldTypeF8Vector f8_vector = 14;
+    FieldTypeF16Vector f16_vector = 15;
+    FieldTypeI8SparseVector i8_sparse_vector = 16;
+    FieldTypeF8SparseVector f8_sparse_vector = 17;
+    FieldTypeF16SparseVector f16_sparse_vector = 18;
+    FieldTypeStruct struct = 19;
+    FieldTypeTimestamp timestamp = 20;
+    FieldTypeImage image = 21;
+  }
+}
+
+message FieldTypeText {}
+message FieldTypeInteger {}
+message FieldTypeFloat {}
+message FieldTypeBoolean {}
+message FieldTypeTimestamp {}
+message FieldTypeImage {}
+
+message FieldTypeF32Vector {
+  uint32 dimension = 1;
+}
+
+message FieldTypeF16Vector {
+  uint32 dimension = 1;
+}
+
+message FieldTypeF8Vector {
+  uint32 dimension = 1;
+}
+
+message FieldTypeU8Vector {
+  uint32 dimension = 1;
+}
+
+message FieldTypeI8Vector {
+  uint32 dimension = 1;
+}
+
+message FieldTypeBinaryVector {
+  uint32 dimension = 1;
+}
+
+message FieldTypeMatrix {
+  enum MatrixValueType {
+    MATRIX_VALUE_TYPE_UNSPECIFIED = 0;
+    MATRIX_VALUE_TYPE_F32 = 1;
+    MATRIX_VALUE_TYPE_F16 = 2;
+    MATRIX_VALUE_TYPE_F8 = 3;
+    MATRIX_VALUE_TYPE_U8 = 4;
+    MATRIX_VALUE_TYPE_I8 = 5;
+  }
+
+  uint32 dimension = 1;
+  MatrixValueType value_type = 2;
+}
+
+message FieldTypeF32SparseVector {}
+message FieldTypeF16SparseVector {}
+message FieldTypeF8SparseVector {}
+message FieldTypeU8SparseVector {}
+message FieldTypeI8SparseVector {}
+
+message FieldTypeBytes {}
+
+message FieldTypeList {
+  enum ListValueType {
+    LIST_VALUE_TYPE_UNSPECIFIED = 0;
+    LIST_VALUE_TYPE_INTEGER = 1;
+    LIST_VALUE_TYPE_FLOAT = 2;
+    LIST_VALUE_TYPE_STRING = 3;
+  }
+  ListValueType value_type = 1;
+}
+
+message FieldTypeStruct {
+  map<string, FieldSpec> fields = 1;
+}
+
+// Keyword index specification
+
+message KeywordIndex {
+  // Index type
+  KeywordIndexType index_type = 1;
+}
+
+enum KeywordIndexType {
+  // Unspecified
+  KEYWORD_INDEX_TYPE_UNSPECIFIED = 0;
+  // Keyword index
+  KEYWORD_INDEX_TYPE_TEXT = 1;
+  // Exact keyword index
+  KEYWORD_INDEX_TYPE_EXACT = 2;
+  // KEYWORD_INDEX_TYPE_CODE = 3;
+  // KEYWORD_INDEX_TYPE_LOG = 4;
+}
+
+
+// NGram index specification
+message NGramIndex {}
+
+// Multi-vector index specification
+message MultiVectorIndex {
+  // Distance metric used for this multi-vector index.
+  MultiVectorDistanceMetric metric = 1;
+  // Number of bits used for 1st stage retrieval sketch.
+  optional uint32 sketch_bits = 2 [deprecated = true];
+  // Quantization used for multi-vector maxsim reranking.
+  optional MultiVectorQuantization quantization = 3;
+  /// Width of the sparse projection.
+  optional uint32 width = 4;
+  /// Top-k projected values to keep.
+  optional uint32 top_k = 5;
+  /// Skip sparse multi-vector encoding
+  bool skip_smve = 6;
+  /// Encoding version
+  uint32 encoding_version = 7;
+}
+
+// Multi-vector distance
+enum MultiVectorDistanceMetric {
+  MULTI_VECTOR_DISTANCE_METRIC_UNSPECIFIED = 0;
+  MULTI_VECTOR_DISTANCE_METRIC_MAXSIM = 1;
+}
+
+// Multi-vector quantization type
+enum MultiVectorQuantization {
+  MULTI_VECTOR_QUANTIZATION_UNSPECIFIED = 0;
+  MULTI_VECTOR_QUANTIZATION_BINARY_1BIT = 1;
+  MULTI_VECTOR_QUANTIZATION_BINARY_2BIT = 2;
+  MULTI_VECTOR_QUANTIZATION_SCALAR = 3;
+}
+
+// Vector index specification
+
+message VectorIndex {
+  // Distance metric
+  VectorDistanceMetric metric = 1;
+  // Use exact scoring for this index.
+  optional bool exact = 2;
+}
+
+enum VectorDistanceMetric {
+  // Unspecified
+  VECTOR_DISTANCE_METRIC_UNSPECIFIED = 0;
+  // Cosine distance
+  VECTOR_DISTANCE_METRIC_COSINE = 1;
+  // Euclidean distance
+  VECTOR_DISTANCE_METRIC_EUCLIDEAN = 2;
+  // Dot product
+  VECTOR_DISTANCE_METRIC_DOT_PRODUCT = 3;
+  // Hamming distance
+  VECTOR_DISTANCE_METRIC_HAMMING = 4;
+}
+
+// Semantic index specification
+
+enum EmbeddingDataType {
+  // Unspecified
+  EMBEDDING_DATA_TYPE_UNSPECIFIED = 0;
+  // Raw float32
+  EMBEDDING_DATA_TYPE_F32 = 1;
+  // Scalar quantized uint8
+  EMBEDDING_DATA_TYPE_U8 = 2;
+  // Binary quantized uint8
+  EMBEDDING_DATA_TYPE_BINARY = 3;
+}
+
+message SemanticIndex {
+  // Model to be used for embedding text to vectors.
+  optional string model = 1 [deprecated = true];
+  // Data type of the embedding vectors.
+  optional EmbeddingDataType embedding_type = 2 [deprecated = true];
+}

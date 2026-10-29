@@ -60,5 +60,6 @@ export default defineConfig(
 			'wdio.conf.mts',
 		],
 		languageOptions: { globals: { ...globals.node } },
+		rules: { 'obsidianmd/rule-custom-message': 'off', 'no-console': 'off' },
 	},
 );

@@ -1,0 +1,106 @@
+syntax = "proto3";
+package topk.data.v1;
+
+import "topk/data/v1/document.proto";
+import "topk/data/v1/expr/function.proto";
+import "topk/data/v1/expr/aggregate.proto";
+import "topk/data/v1/expr/logical.proto";
+import "topk/data/v1/expr/text.proto";
+import "topk/data/v1/value.proto";
+
+message Query {
+  repeated Stage stages = 1;
+}
+
+message Stage {
+  message SelectStage {
+    message SelectExpr {
+      oneof expr {
+        LogicalExpr logical_expr = 1;
+        FunctionExpr function_expr = 2;
+      }
+    }
+    map<string, SelectExpr> exprs = 1;
+  }
+
+  message FilterStage {
+    message FilterExpr {
+      oneof expr {
+        LogicalExpr logical_expr = 1;
+        TextExpr text_expr = 2;
+      }
+    }
+    FilterExpr expr = 1;
+  }
+
+  message TopKStage {
+    LogicalExpr expr = 1;
+    uint64 k = 2;
+    bool asc = 3;
+  }
+
+  message CountStage {}
+
+  message RerankStage {
+    // Model to be used for reranking.
+    optional string model = 1;
+    // Query rerank against.
+    optional string query = 2;
+    // Fields to rerank by.
+    repeated string fields = 3;
+    // TopK multiple.
+    optional uint32 topk_multiple = 4;
+  }
+
+  message LimitStage {
+    uint64 k = 1;
+  }
+
+  message OffsetStage {
+    uint64 offset = 1;
+  }
+
+  message SortStage {
+    enum SortOrder {
+      SORT_ORDER_UNSPECIFIED = 0;
+      SORT_ORDER_ASC = 1;
+      SORT_ORDER_DESC = 2;
+    }
+
+    message SortExpr {
+      // Expression to sort by.
+      LogicalExpr expr = 1;
+      // Sort order.
+      SortOrder order = 2;
+    }
+
+    LogicalExpr expr = 1 [deprecated = true];
+    bool asc = 2 [deprecated = true];
+    repeated SortExpr exprs = 3;
+  }
+
+  message FetchStage {
+    repeated string fields = 1;
+  }
+
+  message GroupByStage {
+    // Grouping keys: output field name -> key expression.
+    map<string, LogicalExpr> keys = 1;
+    // Aggregations: output field name -> aggregation expression.
+    map<string, AggregateExpr> aggs = 2;
+  }
+
+  oneof stage {
+    SelectStage select = 1;
+    FilterStage filter = 2;
+    // Deprecated in favor of LimitStage + SortStage.
+    TopKStage top_k = 3 [deprecated = true];
+    CountStage count = 4;
+    RerankStage rerank = 5 [deprecated = true];
+    LimitStage limit = 6;
+    SortStage sort = 7;
+    FetchStage fetch = 8;
+    GroupByStage group_by = 9;
+    OffsetStage offset = 10;
+  }
+}
