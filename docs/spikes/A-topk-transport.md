@@ -45,9 +45,10 @@ can the plugin call TopK's HTTP API through `requestUrl`?
 
 6. **Bundle cost.** The transport plus the generated collection, write and query services is
    94 KB minified (28 KB gzipped).
-7. **Inside Obsidian.** Desktop plugins run in a renderer with Node integration, so `require('http2')`
-   is available; esbuild already marks Node built-ins as external. Spike D's harness runs the same
-   probe inside a real Obsidian window — see `docs/spikes/D-e2e-harness.md`.
+7. **Inside Obsidian: confirmed.** The same `GrpcTransport`, bundled to CommonJS and loaded in the
+   renderer of Obsidian 1.11.4 and 1.14.5, got TopK's `grpc-status: 3` answer in 85–126 ms
+   (`tests/e2e/spikes.e2e.ts`, see `docs/spikes/D-e2e-harness.md`). esbuild already marks Node
+   built-ins such as `http2` as external, and Obsidian's renderer provides them.
 
 ## Tests
 
