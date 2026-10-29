@@ -1,0 +1,10 @@
+{
+	"id": "topk-visual-search",
+	"name": "TopK Visual Search",
+	"version": "0.0.1",
+	"minAppVersion": "1.11.4",
+	"description": "Find the exact PDF page or image in your vault from a plain-language query. Requires a TopK account.",
+	"author": "TopK",
+	"authorUrl": "https://topk.io",
+	"isDesktopOnly": true
+}

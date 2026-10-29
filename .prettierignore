@@ -1,0 +1,8 @@
+node_modules
+main.js
+package-lock.json
+src/topk/gen
+vendor
+tests/fixtures
+PLAN.md
+.wdio-obsidian-cache

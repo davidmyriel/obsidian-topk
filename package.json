@@ -1,0 +1,51 @@
+{
+	"name": "obsidian-topk-visual-search",
+	"version": "0.0.1",
+	"description": "Find the exact PDF page or image in your vault from a plain-language query, powered by TopK.",
+	"main": "main.js",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc -noEmit && node esbuild.config.mjs production",
+		"lint": "eslint . && prettier --check .",
+		"format": "prettier --write .",
+		"typecheck": "tsc -noEmit && tsc -noEmit -p tsconfig.node.json",
+		"test": "vitest run --project unit --project integration",
+		"test:contract": "vitest run --project contract",
+		"test:live": "vitest run --project live",
+		"test:e2e": "wdio run ./wdio.conf.mts",
+		"bench": "tsx bench/runners/index.ts",
+		"proto": "buf generate vendor/topk-protos",
+		"version": "node version-bump.mjs && git add manifest.json versions.json",
+		"check": "npm run lint && npm run typecheck && npm run test && npm run test:contract && npm run build"
+	},
+	"keywords": [
+		"obsidian",
+		"topk",
+		"visual-search"
+	],
+	"license": "MIT",
+	"dependencies": {
+		"@bufbuild/protobuf": "2.16.0"
+	},
+	"devDependencies": {
+		"@bufbuild/buf": "1.75.0",
+		"@bufbuild/protoc-gen-es": "2.16.0",
+		"@eslint/js": "9.39.5",
+		"@napi-rs/canvas": "1.0.13",
+		"@types/node": "22.20.5",
+		"esbuild": "0.28.2",
+		"eslint": "9.39.5",
+		"eslint-plugin-obsidianmd": "0.4.0",
+		"globals": "17.13.0",
+		"jiti": "2.7.0",
+		"obsidian": "1.14.4",
+		"pdfjs-dist": "6.4.299",
+		"prettier": "3.9.10",
+		"tsx": "4.23.15",
+		"typescript": "5.9.3",
+		"typescript-eslint": "8.72.1",
+		"vitest": "5.0.5"
+	}
+}
