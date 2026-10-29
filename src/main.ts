@@ -1,4 +1,5 @@
 import { Notice, Plugin } from 'obsidian';
+import { IndexController, StateStore } from './indexing';
 import { TopKSettingTab } from './settings';
 import { loadSettings, type Settings } from './settingsModel';
 import type { TopKClient } from './topk/client';
@@ -14,11 +15,33 @@ interface SettingsOpener {
 export default class TopKVisualSearchPlugin extends Plugin {
 	declare settings: Settings;
 	readonly log = new Logger();
+	readonly stateStore = new StateStore(this);
+	indexer!: IndexController;
 
 	override async onload(): Promise<void> {
 		this.settings = loadSettings(await this.loadData(), this.app.vault.configDir);
 		this.log.enabled = this.settings.debugLog;
 		this.addSettingTab(new TopKSettingTab(this.app, this));
+		this.indexer = new IndexController(this);
+
+		this.addCommand({
+			id: 'index-vault',
+			name: 'Index vault',
+			callback: () => void this.indexer.run(),
+		});
+		this.addCommand({
+			id: 'cancel-indexing',
+			name: 'Cancel indexing',
+			checkCallback: (checking) => {
+				if (!this.indexer.running) return false;
+				if (!checking) this.indexer.cancel();
+				return true;
+			},
+		});
+	}
+
+	override onunload(): void {
+		this.indexer.cancel();
 	}
 
 	async saveSettings(): Promise<void> {

@@ -37,3 +37,7 @@ All notable changes to this project are documented here. The format follows
   exclude patterns (default: the vault's config folder and `.trash`), max pages per file (300),
   page image size, custom endpoint, debug log, and a "Test connection" button. A missing key shows
   a notice that links to settings.
+- "Index vault" command: scans the vault, asks before the first upload (files, pages and what is
+  sent), shows "Indexing 214 / 1,032 pages" in the status bar with a Cancel link, and reports a
+  summary. "Cancel indexing" command. Index state is saved to `index-state.json` in the plugin
+  folder. E2E suite now runs against a local mock TopK server.

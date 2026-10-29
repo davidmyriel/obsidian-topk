@@ -1,5 +1,7 @@
 import * as path from 'node:path';
 import { build } from 'esbuild';
+import { fixtureScorer } from './tests/support/fixtures';
+import { startMockTopK, type MockTopK } from './tests/support/mockTopkServer';
 
 const root = import.meta.dirname;
 const cacheDir = path.resolve(root, '.obsidian-cache');
@@ -11,6 +13,10 @@ const versions: [app: string, installer: string][] = [
 	['latest', 'latest'],
 ];
 const only = process.env.OBSIDIAN_VERSIONS; // e.g. "latest" to run one version locally
+
+// A local mock TopK shared by all workers; specs point the plugin at MOCK_TOPK_ORIGIN.
+export const MOCK_TOPK_KEY = 'e2e-key';
+let mock: MockTopK | undefined;
 
 export const config: WebdriverIO.Config = {
 	runner: 'local',
@@ -34,6 +40,8 @@ export const config: WebdriverIO.Config = {
 	mochaOpts: { ui: 'bdd', timeout: 120_000 },
 	logLevel: 'warn',
 	onPrepare: async () => {
+		mock = await startMockTopK({ apiKey: MOCK_TOPK_KEY, scorer: await fixtureScorer() });
+		process.env.MOCK_TOPK_ORIGIN = mock.origin;
 		await build({
 			entryPoints: [path.join(root, 'tests', 'e2e', 'probe', 'probe.ts')],
 			bundle: true,
@@ -44,5 +52,8 @@ export const config: WebdriverIO.Config = {
 			outfile: probeBundle,
 			logLevel: 'warning',
 		});
+	},
+	onComplete: async () => {
+		await mock?.close();
 	},
 };
