@@ -10,7 +10,8 @@
 - Each run boots real Obsidian with `tests/fixtures/vault` and the plugin built from the repo root.
 - Version matrix on every PR: `earliest` (= `minAppVersion` 1.11.4) and `latest`. Weekly macOS and
   Windows runs come with `nightly.yml`.
-- Linux CI runs under `xvfb-run` and caches `.obsidian-cache`.
+- Linux CI runs under `xvfb-run` and caches `.obsidian-cache`; confirmed on GitHub Actions on
+  2026-10-29 (85 s).
 - Code that must run inside Obsidian but isn't part of the plugin (spike probes, later test helpers)
   is bundled in `onPrepare` and loaded with `require()` through `browser.executeObsidian`.
 - Specs that touch the network are opt-in (`E2E_SPIKES=1`); the default suite will talk to a local

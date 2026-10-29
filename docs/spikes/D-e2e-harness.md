@@ -33,8 +33,9 @@ regular e2e suite will use a local mock TopK server (PLAN.md testing strategy).
 ## Linux CI
 
 `.github/workflows/ci.yml` has an `e2e-linux` job: `xvfb-run --auto-servernum npm run test:e2e` on
-`ubuntu-latest`, with `.obsidian-cache` cached. **It has not run yet**: the repository has no remote,
-and pushing needs Dave's approval. This is the one Stage 0 exit criterion that is still open.
+`ubuntu-latest`, with `.obsidian-cache` cached. First run on GitHub (2026-10-29, commit `b734353`):
+passed in 85 s, covering index, search, opening page 3 and saving the results note. The `check` job
+passed in 46 s.
 
 ## Audit
 
