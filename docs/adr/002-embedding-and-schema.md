@@ -1,7 +1,6 @@
 # ADR-002: Embedding and schema
 
-- Status: Proposed (awaiting Dave's approval; one open question for TopK on image billing).
-  Confirmed live on 2026-10-29: hero page at rank 1, contract fixtures recorded.
+- Status: Accepted by Dave on 2026-10-29
 - Date: 2026-10-29
 - Spike: `docs/spikes/B-image-embedding.md`
 

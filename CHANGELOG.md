@@ -25,3 +25,4 @@ All notable changes to this project are documented here. The format follows
   `minAppVersion` set to 1.11.4 for `SecretStorage`. ADR-004 "E2E tooling" (proposed).
 - Live Stage 0 smoke run: hero page at rank 1 at 1024, 1536 and 2048 px. Recorded TopK fixtures
   (account ids redacted) now drive the contract tests. ADR-003 default long side set to 1024 px.
+- ADR-001 to ADR-004 accepted. `docs/PRIVACY.md` states that page images are stored in TopK.

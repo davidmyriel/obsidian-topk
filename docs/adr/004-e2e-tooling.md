@@ -1,6 +1,6 @@
 # ADR-004: E2E tooling
 
-- Status: Proposed (awaiting Dave's approval; Linux CI run pending a remote)
+- Status: Accepted by Dave on 2026-10-29
 - Date: 2026-10-29
 - Spike: `docs/spikes/D-e2e-harness.md`
 

@@ -1,6 +1,6 @@
 # ADR-001: TopK transport
 
-- Status: Proposed (awaiting Dave's approval)
+- Status: Accepted by Dave on 2026-10-29
 - Date: 2026-10-29
 - Spike: `docs/spikes/A-topk-transport.md`
 
