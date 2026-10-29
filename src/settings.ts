@@ -1,0 +1,177 @@
+import { Notice, PluginSettingTab, SecretComponent, Setting, type App } from 'obsidian';
+import type TopKVisualSearchPlugin from './main';
+import { parseList } from './indexer/globs';
+import { collectionNameError, endpointError, LONG_SIDES, REGIONS } from './settingsModel';
+import { TopKError } from './topk/client';
+
+export class TopKSettingTab extends PluginSettingTab {
+	constructor(
+		app: App,
+		private readonly plugin: TopKVisualSearchPlugin,
+	) {
+		super(app, plugin);
+	}
+
+	override display(): void {
+		const { containerEl } = this;
+		const s = this.plugin.settings;
+		const save = (): Promise<void> => this.plugin.saveSettings();
+		containerEl.empty();
+
+		containerEl.createEl('p', {
+			text: 'Page images of your PDF and image files are uploaded to TopK and stored in your TopK collection. File names and paths stay on this device.',
+			cls: 'setting-item-description',
+		});
+
+		new Setting(containerEl)
+			.setName('TopK API key')
+			.setDesc('Stored in Obsidian’s secret storage. Create a key in the TopK console.')
+			.addComponent((el) =>
+				new SecretComponent(this.app, el)
+					.setValue(s.apiKeySecret)
+					.onChange(async (value) => {
+						s.apiKeySecret = value ?? '';
+						await save();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName('Region')
+			.setDesc('Where your TopK project stores data.')
+			.addDropdown((d) => {
+				for (const r of REGIONS) d.addOption(r.id, r.label);
+				d.setValue(s.region).onChange(async (value) => {
+					s.region = value;
+					await save();
+				});
+			});
+
+		const collection = new Setting(containerEl)
+			.setName('Collection')
+			.setDesc(
+				'Created on first index. Changing it re-indexes the vault into the new collection.',
+			);
+		collection.addText((t) =>
+			t.setValue(s.collection).onChange(async (value) => {
+				const error = collectionNameError(value.trim());
+				collection.descEl.toggleClass('mod-warning', error !== null);
+				if (error) {
+					collection.setDesc(error);
+					return;
+				}
+				collection.setDesc(
+					'Created on first index. Changing it re-indexes the vault into the new collection.',
+				);
+				s.collection = value.trim();
+				await save();
+			}),
+		);
+
+		new Setting(containerEl)
+			.setName('Test connection')
+			.setDesc('Checks the key, the region and the collection.')
+			.addButton((b) =>
+				b.setButtonText('Test').onClick(async () => {
+					b.setDisabled(true);
+					try {
+						new Notice(await this.plugin.testConnection());
+					} catch (err) {
+						new Notice(
+							err instanceof TopKError
+								? err.message
+								: `Connection failed: ${String(err)}`,
+						);
+					} finally {
+						b.setDisabled(false);
+					}
+				}),
+			);
+
+		new Setting(containerEl).setName('Indexing').setHeading();
+
+		new Setting(containerEl)
+			.setName('Include folders')
+			.setDesc('One folder per line. Leave empty to index the whole vault.')
+			.addTextArea((t) =>
+				t.setValue(s.includeFolders.join('\n')).onChange(async (value) => {
+					s.includeFolders = parseList(value);
+					await save();
+				}),
+			);
+
+		new Setting(containerEl)
+			.setName('Exclude patterns')
+			.setDesc(
+				'One glob per line, for example Private/**. Matching files are never uploaded.',
+			)
+			.addTextArea((t) =>
+				t.setValue(s.excludeGlobs.join('\n')).onChange(async (value) => {
+					s.excludeGlobs = parseList(value);
+					await save();
+				}),
+			);
+
+		new Setting(containerEl)
+			.setName('Max pages per file')
+			.setDesc('PDF files with more pages are skipped.')
+			.addText((t) => {
+				t.inputEl.type = 'number';
+				t.setValue(String(s.maxPagesPerFile)).onChange(async (value) => {
+					const n = Number(value);
+					if (Number.isInteger(n) && n >= 1) {
+						s.maxPagesPerFile = n;
+						await save();
+					}
+				});
+			});
+
+		new Setting(containerEl)
+			.setName('Page image size')
+			.setDesc(
+				'Long side of each uploaded page. Larger sizes keep more detail and upload more data.',
+			)
+			.addDropdown((d) => {
+				for (const size of LONG_SIDES) d.addOption(String(size), `${size} px`);
+				d.setValue(String(s.longSide)).onChange(async (value) => {
+					s.longSide = Number(value);
+					await save();
+				});
+			});
+
+		new Setting(containerEl).setName('Advanced').setHeading();
+
+		const endpoint = new Setting(containerEl)
+			.setName('Custom endpoint')
+			.setDesc(
+				'Overrides the region, for example a private TopK deployment. Leave empty normally.',
+			);
+		endpoint.addText((t) =>
+			t
+				.setPlaceholder('https://…')
+				.setValue(s.endpoint)
+				.onChange(async (value) => {
+					const error = endpointError(value.trim());
+					endpoint.descEl.toggleClass('mod-warning', error !== null);
+					if (error) {
+						endpoint.setDesc(error);
+						return;
+					}
+					endpoint.setDesc(
+						'Overrides the region, for example a private TopK deployment. Leave empty normally.',
+					);
+					s.endpoint = value.trim();
+					await save();
+				}),
+		);
+
+		new Setting(containerEl)
+			.setName('Debug log')
+			.setDesc('Writes details to the developer console. The API key is never logged.')
+			.addToggle((t) =>
+				t.setValue(s.debugLog).onChange(async (value) => {
+					s.debugLog = value;
+					await save();
+				}),
+			);
+	}
+}

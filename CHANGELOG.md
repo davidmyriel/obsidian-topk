@@ -33,3 +33,7 @@ All notable changes to this project are documented here. The format follows
   content hash, and a pipeline that hashes only changed files, renders PDF pages and images
   (WebP re-encoded to JPEG), uploads in bounded batches, checkpoints after every file, supports
   cancel, and makes zero TopK calls when nothing changed. Fixture vault grown to 20 pages.
+- Settings tab: TopK API key in Obsidian's secret storage, region, collection, include folders,
+  exclude patterns (default: the vault's config folder and `.trash`), max pages per file (300),
+  page image size, custom endpoint, debug log, and a "Test connection" button. A missing key shows
+  a notice that links to settings.

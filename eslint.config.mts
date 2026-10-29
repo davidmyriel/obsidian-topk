@@ -36,6 +36,15 @@ export default defineConfig(
 		files: ['src/**/*.ts'],
 		rules: {
 			'@typescript-eslint/no-explicit-any': 'error',
+			'obsidianmd/ui/sentence-case': [
+				'warn',
+				{
+					brands: ['TopK', 'Obsidian'],
+					acronyms: ['PDF', 'PDFs', 'API', 'URL'],
+					// Globs and URLs shown as examples keep their case.
+					ignoreRegex: ['[A-Za-z]+/\\*\\*', '^https?://'],
+				},
+			],
 		},
 	},
 	{
