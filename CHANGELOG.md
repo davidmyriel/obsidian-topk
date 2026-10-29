@@ -12,3 +12,5 @@ All notable changes to this project are documented here. The format follows
 - CI workflow running `npm run check` on every pull request and push to `main`.
 - Spike A: minimal gRPC client over Node `http2` (`src/topk/grpc.ts`) with a codec generated from
   TopK's v0.16.1 protos (vendored in `vendor/topk-protos`). ADR-001 "TopK transport" (proposed).
+- PDF page renderer (`src/render/pdfRenderer.ts`) with injected pdf.js and canvas, and a generated,
+  redistributable fixture vault (`scripts/make-fixtures.ts`).
