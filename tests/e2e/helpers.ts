@@ -47,3 +47,29 @@ export function isIndexing(): Promise<boolean> {
 			.running;
 	});
 }
+
+/** Runs Index vault with consent already given and waits for it to finish. */
+export async function indexVault(): Promise<void> {
+	await browser.executeObsidianCommand(`${PLUGIN_ID}:index-vault`);
+	await browser.waitUntil(async () => !(await isIndexing()), {
+		timeout: 60_000,
+		timeoutMsg: 'indexing did not finish',
+	});
+}
+
+/** The active view's type, file and, for PDFs, the page shown (internal API, test-only). */
+export function activeView(): Promise<{ type: string; file: string | null; page: number | null }> {
+	return browser.executeObsidian(({ app }) => {
+		const leaf = app.workspace.getMostRecentLeaf();
+		const view = leaf?.view as unknown as {
+			getViewType(): string;
+			file?: { path: string };
+			viewer?: { child?: { pdfViewer?: { pdfViewer?: { currentPageNumber?: number } } } };
+		};
+		return {
+			type: view?.getViewType() ?? '',
+			file: view?.file?.path ?? null,
+			page: view?.viewer?.child?.pdfViewer?.pdfViewer?.currentPageNumber ?? null,
+		};
+	});
+}

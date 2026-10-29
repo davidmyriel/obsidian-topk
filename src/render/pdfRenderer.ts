@@ -13,6 +13,7 @@ export interface PdfPage {
 		promise: Promise<unknown>;
 	};
 	cleanup(): void;
+	getTextContent(): Promise<{ items: unknown[] }>;
 }
 
 export interface PdfDocument {

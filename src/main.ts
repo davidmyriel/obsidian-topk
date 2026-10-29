@@ -1,5 +1,7 @@
 import { Notice, Plugin } from 'obsidian';
 import { IndexController, StateStore } from './indexing';
+import { noteBaseName, pageLinkText, resultsNote, type ResolvedResult } from './search/links';
+import { VisualSearchModal, type LastSearch } from './search/searchModal';
 import { TopKSettingTab } from './settings';
 import { loadSettings, type Settings } from './settingsModel';
 import type { TopKClient } from './topk/client';
@@ -17,6 +19,7 @@ export default class TopKVisualSearchPlugin extends Plugin {
 	readonly log = new Logger();
 	readonly stateStore = new StateStore(this);
 	indexer!: IndexController;
+	lastSearch: LastSearch | null = null;
 
 	override async onload(): Promise<void> {
 		this.settings = loadSettings(await this.loadData(), this.app.vault.configDir);
@@ -38,6 +41,51 @@ export default class TopKVisualSearchPlugin extends Plugin {
 				return true;
 			},
 		});
+		this.addCommand({
+			id: 'visual-search',
+			name: 'Visual search',
+			callback: () => this.openSearch(),
+		});
+		this.addCommand({
+			id: 'save-results-as-note',
+			name: 'Save results as note',
+			callback: () => void this.saveResultsNote(),
+		});
+		this.addRibbonIcon('scan-search', 'Visual search', () => this.openSearch());
+	}
+
+	openSearch(): void {
+		if (!this.apiKey()) {
+			this.notifyMissingKey();
+			return;
+		}
+		new VisualSearchModal(this.app, this).open();
+	}
+
+	/** Opens a PDF at the result's page, or the image file. */
+	async openResult(result: ResolvedResult): Promise<void> {
+		await this.app.workspace.openLinkText(
+			pageLinkText(result.path, result.page, result.kind),
+			'',
+			false,
+		);
+	}
+
+	/** Writes the last search's results as a note of links and opens it. */
+	async saveResultsNote(): Promise<void> {
+		const last = this.lastSearch;
+		if (!last || last.results.length === 0) {
+			new Notice('Run a visual search with results first.');
+			return;
+		}
+		const base = noteBaseName(last.query);
+		let path = `${base}.md`;
+		for (let i = 2; this.app.vault.getAbstractFileByPath(path); i++) path = `${base} ${i}.md`;
+		const file = await this.app.vault.create(
+			path,
+			resultsNote(last.query, last.results, new Date()),
+		);
+		await this.app.workspace.getLeaf(false).openFile(file);
 	}
 
 	override onunload(): void {

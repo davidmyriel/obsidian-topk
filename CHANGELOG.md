@@ -41,3 +41,8 @@ All notable changes to this project are documented here. The format follows
   sent), shows "Indexing 214 / 1,032 pages" in the status bar with a Cancel link, and reports a
   summary. "Cancel indexing" command. Index state is saved to `index-state.json` in the plugin
   folder. E2E suite now runs against a local mock TopK server.
+- "Visual search" command and ribbon icon: a modal that shows the top 10 pages with a thumbnail,
+  file name, page number and a one-line snippet from the PDF's local text layer; click or Enter
+  opens the PDF at that page (`talk.pdf#page=15`) or the image. Results whose file was deleted are
+  dropped. "Save results as note" writes the results as `[[file.pdf#page=N]]` links. E2E covers
+  search → click → PDF on page 3, and saving the note.
