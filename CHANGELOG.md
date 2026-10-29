@@ -49,3 +49,4 @@ All notable changes to this project are documented here. The format follows
 - Live test: indexes the 20 fixture pages into a throwaway collection with the real pipeline and
   checks the hero query ranks first, then deletes the collection. `nightly.yml` runs it with the
   `TOPK_API_KEY` secret, plus e2e on macOS and Windows.
+- README with usage, network use and install instructions; `docs/ARCHITECTURE.md`.
