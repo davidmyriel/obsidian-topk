@@ -26,3 +26,6 @@ All notable changes to this project are documented here. The format follows
 - Live Stage 0 smoke run: hero page at rank 1 at 1024, 1536 and 2048 px. Recorded TopK fixtures
   (account ids redacted) now drive the contract tests. ADR-003 default long side set to 1024 px.
 - ADR-001 to ADR-004 accepted. `docs/PRIVACY.md` states that page images are stored in TopK.
+- `TopKClient` interface with the gRPC implementation (`src/topk/grpcClient.ts`): collection
+  create-or-validate, byte-budgeted upsert batches, search, delete, and user-facing error kinds.
+  In-memory `FakeTopK` and a local mock TopK gRPC server for tests. Redacting debug logger.

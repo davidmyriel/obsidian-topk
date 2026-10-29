@@ -83,3 +83,16 @@ describe('recorded TopK fixtures', () => {
 		expect(first).toEqual({ case: 'i64', value: 3n });
 	});
 });
+
+describe('GrpcTopKClient parsing of recorded responses', () => {
+	it.skipIf(!has('search.response'))('parses every recorded hit', async () => {
+		const { parseHit } = await import('../../src/topk/grpcClient');
+		const res = fromBinary(QueryService.method.query.output, read('search.response'));
+		const hits = res.results.map(parseHit);
+		expect(hits.every((h) => h !== null)).toBe(true);
+		expect(hits[0]).toMatchObject({ page: 3, tile: 0, kind: 'pdf_page' });
+		expect(hits.map((h) => h?.score)).toEqual(
+			[...hits.map((h) => h?.score)].sort((a, b) => (b ?? 0) - (a ?? 0)),
+		);
+	});
+});
