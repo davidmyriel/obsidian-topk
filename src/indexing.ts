@@ -82,7 +82,7 @@ export function indexOptions(plugin: TopKVisualSearchPlugin): IndexOptions {
 		includeFolders: s.includeFolders,
 		excludeGlobs: s.excludeGlobs,
 		maxPagesPerFile: s.maxPagesPerFile,
-		longSide: s.longSide,
+		maxPixels: s.maxPixels,
 	};
 }
 

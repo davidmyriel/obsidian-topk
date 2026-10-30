@@ -1,7 +1,7 @@
 import { Notice, PluginSettingTab, SecretComponent, Setting, type App } from 'obsidian';
 import type TopKVisualSearchPlugin from './main';
 import { parseList } from './indexer/globs';
-import { collectionNameError, endpointError, LONG_SIDES, REGIONS } from './settingsModel';
+import { collectionNameError, endpointError, PIXEL_BUDGETS, REGIONS } from './settingsModel';
 import { TopKError } from './topk/client';
 
 export class TopKSettingTab extends PluginSettingTab {
@@ -128,12 +128,12 @@ export class TopKSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName('Page image size')
 			.setDesc(
-				'Long side of each uploaded page. Larger sizes keep more detail and upload more data.',
+				'Full detail matches what the TopK model can see. Smaller uploads send about half the data.',
 			)
 			.addDropdown((d) => {
-				for (const size of LONG_SIDES) d.addOption(String(size), `${size} px`);
-				d.setValue(String(s.longSide)).onChange(async (value) => {
-					s.longSide = Number(value);
+				for (const b of PIXEL_BUDGETS) d.addOption(String(b.value), b.label);
+				d.setValue(String(s.maxPixels)).onChange(async (value) => {
+					s.maxPixels = Number(value);
 					await save();
 				});
 			});

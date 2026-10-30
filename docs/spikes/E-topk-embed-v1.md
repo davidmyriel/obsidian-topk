@@ -47,13 +47,22 @@ the live scores from Spike C, which rose slightly with size (hero page 5.23 at 1
 **Caveat:** this is read from the open small and xsmall models. The blog does not publish the
 production model's preprocessing; it is the same family, but TopK should confirm the budget.
 
-## Proposed change (not applied)
+## Change (applied 2026-10-30, ADR-003 amendment)
 
 Render each page to a pixel budget of about 1.3 MP instead of a fixed long side: scale so that
 width × height ≈ 1,310,720 (about 1526×858 for a slide, 963×1362 for A4). That gives every page
 shape the model's full detail with no wasted upload. Expected JPEG size is 1.5–2× today's
-(still well under 512 KB). This would amend ADR-003 and needs Dave's approval.
+(still well under 512 KB). Dave approved it on 2026-10-30; see the amendment in ADR-003.
 
 ## Deferred
 
 Query by image ("Find similar pages") is on hold at Dave's request (2026-10-30).
+
+## Verified after the change (2026-10-30)
+
+| Check                             | Result                                                            |
+| --------------------------------- | ----------------------------------------------------------------- |
+| Smoke test, 3 slides at 1526×858  | hero page at rank 1, score 5.40 (5.23 at 1024 px); JPEGs 29–49 KB |
+| Live test, 20 fixture pages       | hero page at rank 1, 5.40 vs 3.29 for the next page; query 567 ms |
+| Dense 16-page paper, 1006×1302    | average 189 KB, max 223 KB, no quality step-down                  |
+| E2E in Obsidian 1.11.4 and 1.14.5 | all 8 specs pass                                                  |
