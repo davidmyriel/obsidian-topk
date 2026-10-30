@@ -108,16 +108,18 @@ export async function* imagePages(
 	data: Uint8Array,
 	options: PageImageOptions,
 ): AsyncGenerator<PageImage> {
-	const mime = MIME[extension.toLowerCase()];
-	if (!mime) throw new Error(`unsupported image type .${extension}`);
-	const image = await env.decodeImage(data, mime);
+	if (!MIME[extension.toLowerCase()]) throw new Error(`unsupported image type .${extension}`);
+	const image = await env.decodeImage(
+		data,
+		sniffImageMime(data) ?? MIME[extension.toLowerCase()] ?? '',
+	);
 	try {
 		const rects = tileRects(image.width, image.height);
 		if (rects.length === 1) {
 			yield {
 				page: 1,
 				tile: 0,
-				...(await encodeImage(env, extension, data, image, options)),
+				...(await encodeImage(env, image, options)),
 			};
 			return;
 		}
@@ -160,33 +162,29 @@ export async function prepareImage(
 	data: Uint8Array,
 	options: PageImageOptions,
 ): Promise<{ format: ImageFormat; bytes: Uint8Array }> {
-	const mime = MIME[extension.toLowerCase()];
-	if (!mime) throw new Error(`unsupported image type .${extension}`);
-	const image = await env.decodeImage(data, mime);
+	if (!MIME[extension.toLowerCase()]) throw new Error(`unsupported image type .${extension}`);
+	const image = await env.decodeImage(
+		data,
+		sniffImageMime(data) ?? MIME[extension.toLowerCase()] ?? '',
+	);
 	try {
-		return await encodeImage(env, extension, data, image, options);
+		return await encodeImage(env, image, options);
 	} finally {
 		image.close();
 	}
 }
 
+/**
+ * Every image is decoded and re-encoded as JPEG on white, scaled down to the pixel budget (never
+ * up). Uploading files unchanged would send whatever their bytes are, so a PNG named .jpg failed
+ * the whole batch, transparent PNGs were embedded on black, and photos kept EXIF metadata such as
+ * GPS location (ADR-003 amendment, beta 2).
+ */
 async function encodeImage(
 	env: RenderEnv,
-	extension: string,
-	data: Uint8Array,
 	image: DecodedImage,
 	options: PageImageOptions,
 ): Promise<{ format: ImageFormat; bytes: Uint8Array }> {
-	const ext = extension.toLowerCase();
-	const passthrough: ImageFormat | null =
-		ext === 'png' ? 'png' : ext === 'jpg' || ext === 'jpeg' ? 'jpeg' : null;
-	if (
-		passthrough &&
-		data.length <= options.maxBytes &&
-		image.width * image.height <= options.maxPixels
-	) {
-		return { format: passthrough, bytes: data };
-	}
 	const scale = Math.min(
 		1,
 		scaleFor(image.width, image.height, { maxPixels: options.maxPixels }),
@@ -200,4 +198,15 @@ async function encodeImage(
 	} finally {
 		canvas.release();
 	}
+}
+
+/** The image type from its first bytes, so a misnamed file still decodes. */
+export function sniffImageMime(bytes: Uint8Array): string | null {
+	if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47)
+		return 'image/png';
+	if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
+	const text = (from: number, to: number): string =>
+		String.fromCharCode(...bytes.subarray(from, to));
+	if (text(0, 4) === 'RIFF' && text(8, 12) === 'WEBP') return 'image/webp';
+	return null;
 }
