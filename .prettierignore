@@ -6,3 +6,4 @@ vendor
 tests/fixtures
 PLAN.md
 .obsidian-cache
+.claude
