@@ -78,3 +78,8 @@ All notable changes to this project are documented here. The format follows
   split into page-shaped tiles (width × 1.414) with 10% overlap, each scaled to the full pixel
   budget. Tiles are stored as `image_tile` and appear as one search result that opens the image.
   The max-pages-per-file limit also caps tiles.
+- Cost preview: the first-upload and Rebuild dialogs show an estimate from TopK's list prices
+  ($0.075 per 1,000 image embeddings plus upload and storage; about $0.13 per 1,000 pages).
+- **Show index status**: files and pages indexed, partly uploaded files, and failed and skipped
+  files with their reasons, with **Retry failed**. A file that fails is no longer retried on every
+  run; it waits until it changes or you retry.

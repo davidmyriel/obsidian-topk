@@ -1,7 +1,7 @@
 import { Notice, Plugin, TFile, TFolder, type TAbstractFile } from 'obsidian';
 import { ReindexScheduler } from './indexer/scheduler';
 import { sourceKind } from './render/pageSource';
-import { IndexController, IndexMaintenance, StateStore } from './indexing';
+import { IndexController, IndexMaintenance, IndexStatusModal, StateStore } from './indexing';
 import { noteBaseName, pageLinkText, resultsNote, type ResolvedResult } from './search/links';
 import { VisualSearchModal, type LastSearch } from './search/searchModal';
 import { TopKSettingTab } from './settings';
@@ -43,6 +43,11 @@ export default class TopKVisualSearchPlugin extends Plugin {
 				if (!checking) this.indexer.cancel();
 				return true;
 			},
+		});
+		this.addCommand({
+			id: 'show-index-status',
+			name: 'Show index status',
+			callback: () => new IndexStatusModal(this.app, this).open(),
 		});
 		this.addCommand({
 			id: 'rebuild-index',
