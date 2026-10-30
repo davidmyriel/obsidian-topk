@@ -5,7 +5,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-### Fixed (from the outside tester's beta 1 report)
+## [0.1.0-beta.2] - 2026-10-30
+
+Fixes from an outside tester's review of beta 1. Existing indexes keep working. Images uploaded by
+beta 1 stay as they were until the file changes; run **Rebuild index** to re-send them without photo
+metadata and with transparent PNGs fixed.
+
+### Fixed
 
 - One misnamed image (a PNG saved as `.jpg`) no longer stops the whole vault from indexing. Images
   are decoded by their bytes, and if TopK rejects a page, only that file is marked failed.
