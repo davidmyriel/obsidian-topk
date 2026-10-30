@@ -16,6 +16,8 @@ export default defineConfig({
 					name: 'integration',
 					include: ['tests/integration/**/*.test.ts'],
 					environment: 'node',
+					// The load test forces garbage collection to measure what the indexer retains.
+					execArgv: ['--expose-gc'],
 					testTimeout: 30_000,
 				},
 			},
