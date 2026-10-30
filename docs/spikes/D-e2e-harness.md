@@ -44,3 +44,20 @@ passed in 46 s.
 mocha). None reaches `main.js`; `npm audit --omit=dev --audit-level=high` reports 0. CI audits
 shipped dependencies only. PLAN.md's CI row says `npm audit --audit-level=high`, so this is a
 deviation for Dave to approve (ADR-004).
+
+## Windows and the oldest installer (2026-10-30)
+
+The first nightly run failed on Windows with app 1.11.4 on the oldest installer: the renderer
+disconnected about 30 s into indexing. Splitting indexing into separate Windows jobs showed:
+
+| Step                                                                   | Oldest installer (Chromium 120) | `--disable-gpu` | Latest installer (Chromium 142) |
+| ---------------------------------------------------------------------- | ------------------------------- | --------------- | ------------------------------- |
+| Hash, image decode and encode, HTTP/2 to the mock, image-only indexing | pass                            | —               | —                               |
+| `loadPdfJs()`, `getDocument`, canvas JPEG encode                       | pass                            | —               | —                               |
+| pdf.js drawing a page onto a canvas                                    | crash                           | crash           | pass                            |
+| Obsidian's own PDF viewer opening `talk.pdf`                           | crash                           | crash           | pass                            |
+| Indexing `Docs/`                                                       | crash                           | crash           | pass                            |
+
+So the crash is in the old Electron's PDF drawing on that runner, not in the plugin. Windows CI now
+tests app 1.11.4 on the latest installer. Whether real Windows machines with very old installers
+crash too is unknown; Obsidian's own viewer would be affected the same way.
