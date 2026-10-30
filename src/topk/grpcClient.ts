@@ -1,3 +1,9 @@
+import type {
+	DescMessage,
+	DescMethodUnary,
+	MessageInitShape,
+	MessageShape,
+} from '@bufbuild/protobuf';
 import { CollectionService } from './gen/topk/control/v1/collection_service_pb';
 import type { Collection } from './gen/topk/control/v1/collection_pb';
 import type { Document } from './gen/topk/data/v1/document_pb';
@@ -15,6 +21,7 @@ import {
 	type TopKClient,
 } from './client';
 import { GrpcCode, GrpcError, GrpcTransport, regionOrigin } from './grpc';
+import { withRetry, type RetryClock, type RetryPolicy } from './retry';
 import {
 	createCollectionRequest,
 	deletePagesRequest,
@@ -33,6 +40,8 @@ export interface GrpcTopKClientOptions {
 	/** Upsert batch budget; TopK accepts 8 MB per request (ADR-002). */
 	maxBatchBytes?: number;
 	timeoutMs?: number;
+	/** Overrides for tests; defaults follow topk-rs (see retry.ts). */
+	retry?: { policy?: RetryPolicy; clock?: RetryClock };
 }
 
 const PAGE_KINDS: readonly PageKind[] = ['pdf_page', 'image', 'image_tile'];
@@ -63,7 +72,7 @@ export class GrpcTopKClient implements TopKClient {
 			return;
 		}
 		try {
-			await this.transport.unary(
+			await this.call(
 				CollectionService.method.createCollection,
 				createCollectionRequest(this.options.collection),
 			);
@@ -81,7 +90,7 @@ export class GrpcTopKClient implements TopKClient {
 		let lsn = '';
 		for (const batch of batchByBytes(pages, this.options.maxBatchBytes ?? 6 * 1024 * 1024)) {
 			try {
-				const res = await this.transport.unary(
+				const res = await this.call(
 					WriteService.method.upsertDocuments,
 					upsertPagesRequest(batch),
 					this.data,
@@ -97,7 +106,7 @@ export class GrpcTopKClient implements TopKClient {
 	async deletePages(ids: string[]): Promise<{ lsn: string }> {
 		if (ids.length === 0) return { lsn: '' };
 		try {
-			const res = await this.transport.unary(
+			const res = await this.call(
 				WriteService.method.deleteDocuments,
 				deletePagesRequest(ids),
 				this.data,
@@ -117,7 +126,7 @@ export class GrpcTopKClient implements TopKClient {
 		const req = searchRequest(query, vaultId, k);
 		if (options.requiredLsn) req.requiredLsn = options.requiredLsn;
 		try {
-			const res = await this.transport.unary(QueryService.method.query, req, this.data);
+			const res = await this.call(QueryService.method.query, req, this.data);
 			return res.results.flatMap((doc) => {
 				const hit = parseHit(doc);
 				return hit ? [hit] : [];
@@ -131,9 +140,24 @@ export class GrpcTopKClient implements TopKClient {
 		this.transport.close();
 	}
 
+	/**
+	 * One unary call with retries. Every call the plugin makes is safe to repeat: upserts and
+	 * deletes are by id, and a retried create that finds the collection is handled by the caller.
+	 */
+	private call<I extends DescMessage, O extends DescMessage>(
+		method: DescMethodUnary<I, O>,
+		request: MessageInitShape<I>,
+		headers?: Record<string, string>,
+	): Promise<MessageShape<O>> {
+		return withRetry(() => this.transport.unary(method, request, headers), {
+			...(this.options.retry?.policy ? { policy: this.options.retry.policy } : {}),
+			...(this.options.retry?.clock ? { clock: this.options.retry.clock } : {}),
+		});
+	}
+
 	private async getCollection(): Promise<Collection | null> {
 		try {
-			const res = await this.transport.unary(CollectionService.method.getCollection, {
+			const res = await this.call(CollectionService.method.getCollection, {
 				name: this.options.collection,
 			});
 			return res.collection ?? null;

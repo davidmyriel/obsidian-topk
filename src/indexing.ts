@@ -9,6 +9,7 @@ import {
 	type VaultReader,
 } from './indexer/indexer';
 import { progressText, summaryText } from './indexer/progress';
+import { runUntilDone } from './indexer/resilience';
 import { parseState, type IndexState } from './indexer/state';
 import type { PdfJsLike } from './render/pdfRenderer';
 import type { RenderEnv } from './render/pageSource';
@@ -83,6 +84,7 @@ export function indexOptions(plugin: TopKVisualSearchPlugin): IndexOptions {
 		excludeGlobs: s.excludeGlobs,
 		maxPagesPerFile: s.maxPagesPerFile,
 		maxPixels: s.maxPixels,
+		concurrency: s.concurrency,
 	};
 }
 
@@ -163,7 +165,24 @@ export class IndexController {
 				await this.plugin.saveSettings();
 				this.statusEl.show();
 			}
-			const summary = await runIndex(deps, options, plan);
+			// Outages pause the run instead of failing it; each retry re-plans, skipping finished files.
+			const summary = await runUntilDone(
+				(attempt) =>
+					attempt === 0 ? runIndex(deps, options, plan) : runIndex(deps, options),
+				{
+					signal: controller.signal,
+					waitForRetry: (signal) => waitForConnection(signal),
+					onPause: (err) => {
+						this.plugin.log.debug('index paused', err.kind, err.message);
+						this.textEl.setText(
+							err.kind === 'rate_limit'
+								? 'TopK is busy, resuming shortly…'
+								: 'Offline, will resume when connected…',
+						);
+					},
+					onResume: () => this.textEl.setText('Resuming…'),
+				},
+			);
 			new Notice(summaryText(summary), 8_000);
 			for (const f of summary.failed) this.plugin.log.debug('index failed', f.path, f.reason);
 		} catch (err) {
@@ -231,4 +250,19 @@ class FirstRunModal extends Modal {
 		this.answer(start);
 		this.close();
 	}
+}
+
+/** Resolves when the browser reports the connection is back, or after 30 s, whichever is first. */
+function waitForConnection(signal?: AbortSignal): Promise<void> {
+	return new Promise((resolve) => {
+		const done = (): void => {
+			window.clearTimeout(timer);
+			window.removeEventListener('online', done);
+			signal?.removeEventListener('abort', done);
+			resolve();
+		};
+		const timer = window.setTimeout(done, 30_000);
+		window.addEventListener('online', done);
+		signal?.addEventListener('abort', done);
+	});
 }

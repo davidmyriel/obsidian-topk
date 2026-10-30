@@ -73,3 +73,28 @@ export function activeView(): Promise<{ type: string; file: string | null; page:
 		};
 	});
 }
+
+/** Makes the mock TopK fail the next `times` requests to `path` (see mockTopkServer.ts). */
+export async function mockFail(times: number, code: number, path: string): Promise<void> {
+	const { connect } = await import('node:http2');
+	const origin = process.env.MOCK_TOPK_ORIGIN ?? '';
+	await new Promise<void>((resolve, reject) => {
+		const session = connect(origin);
+		const req = session.request({
+			':method': 'POST',
+			':path': `/mock/fail?times=${times}&code=${code}&path=${encodeURIComponent(path)}`,
+		});
+		req.on('response', () => undefined);
+		req.on('end', () => {
+			session.close();
+			resolve();
+		});
+		req.on('error', reject);
+		req.end();
+		req.resume();
+	});
+}
+
+export function statusBarText(): Promise<string> {
+	return browser.executeObsidian(() => document.querySelector('.topk-status')?.textContent ?? '');
+}

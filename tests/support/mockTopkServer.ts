@@ -28,6 +28,13 @@ export interface MockTopK {
 	fake: FakeTopK;
 	/** Collection names created through the API, in order. */
 	created: string[];
+	/** Requests received, by method path. */
+	calls: string[];
+	/** Fails the next `times` requests (optionally only for one method) with a gRPC status. */
+	failNext(
+		times: number,
+		status: { code: number; message?: string; topkCode?: number; path?: string },
+	): void;
 	close(): Promise<void>;
 }
 
@@ -50,6 +57,8 @@ export async function startMockTopK(options: {
 }): Promise<MockTopK> {
 	const fake = new FakeTopK(options.scorer);
 	const created: string[] = [];
+	const calls: string[] = [];
+	const failures: { code: number; message?: string; topkCode?: number; path?: string }[] = [];
 	let collection: string | null = null;
 
 	const requireCollection = (name: string | undefined): void => {
@@ -210,17 +219,38 @@ export async function startMockTopK(options: {
 		const chunks: Buffer[] = [];
 		stream.on('data', (c: Buffer) => chunks.push(c));
 		stream.on('end', () => {
-			const fail = (code: number, message: string): void => {
+			const fail = (code: number, message: string, topkCode?: number): void => {
 				stream.respond(
 					{
 						':status': 200,
 						'content-type': 'application/grpc',
 						'grpc-status': String(code),
 						'grpc-message': encodeURIComponent(message),
+						...(topkCode ? { 'x-topk-error-code': String(topkCode) } : {}),
 					},
 					{ endStream: true },
 				);
 			};
+			const path = String(headers[':path']);
+			// Test control endpoint for e2e specs, which run in another process:
+			// POST /mock/fail?times=N&code=C[&topkCode=T][&path=/svc/Method]
+			if (path.startsWith('/mock/fail')) {
+				const q = new URL(path, 'http://mock').searchParams;
+				const status = {
+					code: Number(q.get('code') ?? 14),
+					...(q.get('topkCode') ? { topkCode: Number(q.get('topkCode')) } : {}),
+					...(q.get('path') ? { path: q.get('path') ?? '' } : {}),
+				};
+				for (let i = 0; i < Number(q.get('times') ?? 1); i++) failures.push(status);
+				stream.respond({ ':status': 204 }, { endStream: true });
+				return;
+			}
+			calls.push(path);
+			const injected = failures.findIndex((f) => !f.path || f.path === path);
+			if (injected >= 0) {
+				const [f] = failures.splice(injected, 1);
+				if (f) return fail(f.code, f.message ?? 'injected failure', f.topkCode);
+			}
 			const auth = headers.authorization;
 			if (!auth) return fail(GrpcCode.INVALID_ARGUMENT, 'authorization header not provided');
 			if (auth !== `Bearer ${options.apiKey}`)
@@ -253,6 +283,10 @@ export async function startMockTopK(options: {
 		origin,
 		fake,
 		created,
+		calls,
+		failNext: (times, status) => {
+			for (let i = 0; i < times; i++) failures.push(status);
+		},
 		close: () =>
 			new Promise<void>((resolve) => {
 				server.close(() => resolve());

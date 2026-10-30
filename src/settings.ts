@@ -140,6 +140,22 @@ export class TopKSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl).setName('Advanced').setHeading();
 
+		new Setting(containerEl)
+			.setName('Parallel uploads')
+			.setDesc(
+				'Upload requests sent to TopK at the same time. Lower it on a slow connection.',
+			)
+			.addSlider((sl) =>
+				sl
+					.setLimits(1, 8, 1)
+					.setValue(s.concurrency)
+					.setDynamicTooltip()
+					.onChange(async (value) => {
+						s.concurrency = value;
+						await save();
+					}),
+			);
+
 		const endpoint = new Setting(containerEl)
 			.setName('Custom endpoint')
 			.setDesc(

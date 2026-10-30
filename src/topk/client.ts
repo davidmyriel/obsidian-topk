@@ -1,4 +1,4 @@
-import { GrpcCode, GrpcError } from './grpc';
+import { GrpcCode, GrpcError, TopKErrorCode } from './grpc';
 import type { PageDoc, PageKind } from './requests';
 
 export type { PageDoc, PageKind };
@@ -37,7 +37,7 @@ export interface TopKClient {
 }
 
 export type TopKErrorKind =
-	'auth' | 'network' | 'schema' | 'rate_limit' | 'invalid' | 'not_found' | 'unknown';
+	'auth' | 'network' | 'schema' | 'rate_limit' | 'quota' | 'invalid' | 'not_found' | 'unknown';
 
 export class TopKError extends Error {
 	constructor(
@@ -77,7 +77,18 @@ export function toTopKError(err: unknown): TopKError {
 		case GrpcCode.DEADLINE_EXCEEDED:
 			return new TopKError('network', `Could not reach TopK: ${err.details}`, err.code);
 		case GrpcCode.RESOURCE_EXHAUSTED:
-			return new TopKError('rate_limit', `TopK rate limit: ${err.details}`, err.code);
+			// SlowDown is temporary server load; anything else is the account's quota or credits.
+			return err.topkCode === TopKErrorCode.SLOW_DOWN
+				? new TopKError(
+						'rate_limit',
+						`TopK is busy, try again shortly: ${err.details}`,
+						err.code,
+					)
+				: new TopKError(
+						'quota',
+						`TopK quota exceeded. Check your credits in the TopK console: ${err.details}`,
+						err.code,
+					);
 		case GrpcCode.NOT_FOUND:
 			return new TopKError('not_found', err.details, err.code);
 		default:
