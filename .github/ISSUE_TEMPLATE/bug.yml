@@ -1,0 +1,49 @@
+name: Bug report
+description: Something in TopK Visual Search does not work as expected.
+labels: [bug, triage]
+body:
+    - type: markdown
+      attributes:
+          value: |
+              Thanks for testing. Please do not paste your TopK API key, and avoid attaching private documents.
+    - type: textarea
+      id: what
+      attributes:
+          label: What happened?
+          description: What you did, what you expected, and what happened instead.
+      validations:
+          required: true
+    - type: textarea
+      id: steps
+      attributes:
+          label: Steps to reproduce
+          placeholder: |
+              1. Run "Index vault"
+              2. Search for "…"
+              3. …
+    - type: input
+      id: plugin-version
+      attributes:
+          label: Plugin version
+          description: Settings → Community plugins, or BRAT.
+          placeholder: 0.1.0-beta.1
+      validations:
+          required: true
+    - type: input
+      id: obsidian-version
+      attributes:
+          label: Obsidian version and operating system
+          placeholder: Obsidian 1.14.5 (installer 1.14.5), macOS 26
+      validations:
+          required: true
+    - type: textarea
+      id: status
+      attributes:
+          label: Index status
+          description: Run "Show index status" and paste the numbers and any failed files (paths can be shortened).
+    - type: textarea
+      id: log
+      attributes:
+          label: Debug log
+          description: Optional. Turn on Settings → TopK Visual Search → Debug log, reproduce, then copy lines starting with [topk-visual-search] from the developer console. The key is never logged.
+          render: text

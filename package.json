@@ -18,7 +18,8 @@
 		"bench": "tsx bench/runners/index.ts",
 		"proto": "buf generate vendor/topk-protos",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
-		"check": "npm run lint && npm run typecheck && npm run test && npm run test:contract && npm run build"
+		"check": "npm run lint && npm run typecheck && npm run test && npm run test:contract && npm run build && npm run check:bundle",
+		"check:bundle": "tsx scripts/check-bundle.ts"
 	},
 	"keywords": [
 		"obsidian",

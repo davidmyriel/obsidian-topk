@@ -40,6 +40,10 @@ The plugin connects only to the TopK endpoint for your region. It uploads an ima
 which TopK stores in your collection so it can be searched, and the text of your queries. File names
 and folder paths never leave your device. There is no telemetry. See [docs/PRIVACY.md](docs/PRIVACY.md).
 
+## Install the beta
+
+Beta builds install through BRAT; see [docs/BETA.md](docs/BETA.md).
+
 ## Install for testing
 
 Until the plugin is in the community store:
