@@ -90,6 +90,22 @@ export function deletePagesRequest(ids: string[]) {
 	return create(DeleteDocumentsRequestSchema, { ids });
 }
 
+/** collection(name).delete(field('vault_id').eq(vaultId)) */
+export function deleteVaultRequest(vaultId: string) {
+	return create(DeleteDocumentsRequestSchema, {
+		expr: {
+			expr: {
+				case: 'binaryOp',
+				value: {
+					op: LogicalExpr_BinaryOp_Op.EQ,
+					left: field('vault_id'),
+					right: { expr: { case: 'literal', value: str(vaultId) } },
+				},
+			},
+		},
+	});
+}
+
 type LogicalInit = MessageInitShape<typeof LogicalExprSchema>;
 const field = (name: string): LogicalInit => ({ expr: { case: 'field', value: name } });
 

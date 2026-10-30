@@ -25,6 +25,7 @@ import { withRetry, type RetryClock, type RetryPolicy } from './retry';
 import {
 	createCollectionRequest,
 	deletePagesRequest,
+	deleteVaultRequest,
 	IMAGE_FIELD,
 	searchRequest,
 	upsertPagesRequest,
@@ -104,16 +105,34 @@ export class GrpcTopKClient implements TopKClient {
 	}
 
 	async deletePages(ids: string[]): Promise<{ lsn: string }> {
-		if (ids.length === 0) return { lsn: '' };
+		let lsn = '';
+		for (let i = 0; i < ids.length; i += 1000) {
+			try {
+				const res = await this.call(
+					WriteService.method.deleteDocuments,
+					deletePagesRequest(ids.slice(i, i + 1000)),
+					this.data,
+				);
+				lsn = res.lsn;
+			} catch (err) {
+				throw toTopKError(err);
+			}
+		}
+		return { lsn };
+	}
+
+	async deleteVault(vaultId: string): Promise<{ lsn: string }> {
 		try {
 			const res = await this.call(
 				WriteService.method.deleteDocuments,
-				deletePagesRequest(ids),
+				deleteVaultRequest(vaultId),
 				this.data,
 			);
 			return { lsn: res.lsn };
 		} catch (err) {
-			throw toTopKError(err);
+			const e = toTopKError(err);
+			if (e.kind === 'not_found') return { lsn: '' };
+			throw e;
 		}
 	}
 

@@ -63,3 +63,10 @@ All notable changes to this project are documented here. The format follows
   stays unreachable, indexing pauses ("Offline, will resume…") and continues when the connection
   returns. Uploads run in parallel ("Parallel uploads" setting, default 4) and a file counts as
   indexed only when all its pages have landed.
+- Deletes: indexing removes pages of files that were deleted, changed or excluded from TopK (no
+  calls when nothing changed; a file that can't be read is kept). New commands **Rebuild index**,
+  **Remove my data from TopK** (deletes only this vault's pages) and **Clear local index**, each
+  with a confirmation.
+- Fix: TopK ids now include the vault id (`vault:hash:page:tile`), so vaults sharing a collection
+  and a file no longer overwrite each other's pages. Existing indexes migrate on the next run:
+  this vault's old pages are deleted and uploaded again.

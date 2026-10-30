@@ -17,15 +17,15 @@ TopK embeds. The plugin uploads each page as a JPEG and never handles vectors.
 
 Collection schema (one collection per vault by default, see open questions):
 
-| Field          | Type              | Index              | Notes                                                         |
-| -------------- | ----------------- | ------------------ | ------------------------------------------------------------- |
-| `_id`          | string            | —                  | `${contentHash}:${page}:${tile}`; full SHA-256 hex in Stage 1 |
-| `vault_id`     | text, required    | none               | equality filter on every search                               |
-| `content_hash` | text, required    | none               | SHA-256 of the file bytes                                     |
-| `page`         | integer, required | none               | 1-based; sent as i64                                          |
-| `tile`         | integer, required | none               | 0 unless the image was tiled                                  |
-| `kind`         | text, required    | none               | `pdf_page`, `image`, `image_tile`                             |
-| `page_image`   | image, required   | `semantic_index()` | JPEG, at most 512 KB                                          |
+| Field          | Type              | Index              | Notes                                                            |
+| -------------- | ----------------- | ------------------ | ---------------------------------------------------------------- |
+| `_id`          | string            | —                  | `${vaultId}:${contentHash}:${page}:${tile}` (amended 2026-10-30) |
+| `vault_id`     | text, required    | none               | equality filter on every search                                  |
+| `content_hash` | text, required    | none               | SHA-256 of the file bytes                                        |
+| `page`         | integer, required | none               | 1-based; sent as i64                                             |
+| `tile`         | integer, required | none               | 0 unless the image was tiled                                     |
+| `kind`         | text, required    | none               | `pdf_page`, `image`, `image_tile`                                |
+| `page_image`   | image, required   | `semantic_index()` | JPEG, at most 512 KB                                             |
 
 Scores are `f32` MaxSim sums, not normalised; the UI ranks by them and does not show them as
 percentages.
@@ -58,3 +58,17 @@ JPEG quality down, then fails the page), upserts batched to at most 6 MB of requ
 - **Matrix field plus client-side embedding with the hosted model:** no API exists for it.
 - **Storing PNG:** larger than JPEG for rendered pages and closer to the 512 KB limit, with no
   expected retrieval gain at these resolutions (Spike C).
+
+## Amendment, 2026-10-30: vault id in the document id
+
+The original id was `${contentHash}:${page}:${tile}`. Because the default collection is shared by
+every vault that uses it, two vaults containing the same file wrote the same ids, and the second
+upload overwrote the first vault's `vault_id`, hiding those pages from the first vault's searches.
+Ids are now `${vaultId}:${contentHash}:${page}:${tile}`. Identical files within one vault are still
+stored once.
+
+Local state moved to version 2. A version 1 state keeps its vault id and file hashes, forgets its
+uploads and is marked for a purge: the next index deletes every document with this vault's
+`vault_id` (a `DeleteDocuments` filter on `vault_id`, confirmed live) and uploads again.
+The same vault-filtered delete backs "Remove my data from TopK" and "Rebuild index", so they never
+touch other vaults in a shared collection.
