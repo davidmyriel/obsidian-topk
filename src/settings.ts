@@ -90,6 +90,18 @@ export class TopKSettingTab extends PluginSettingTab {
 		new Setting(containerEl).setName('Indexing').setHeading();
 
 		new Setting(containerEl)
+			.setName('Index automatically')
+			.setDesc(
+				'Update the index a few seconds after files are added, changed, renamed or deleted, and when Obsidian starts.',
+			)
+			.addToggle((t) =>
+				t.setValue(s.autoIndex).onChange(async (value) => {
+					s.autoIndex = value;
+					await save();
+				}),
+			);
+
+		new Setting(containerEl)
 			.setName('Include folders')
 			.setDesc('One folder per line. Leave empty to index the whole vault.')
 			.addTextArea((t) =>
