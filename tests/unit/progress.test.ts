@@ -5,6 +5,7 @@ const base = {
 	filesIndexed: 0,
 	filesUnchanged: 0,
 	pagesUploaded: 0,
+	pagesDeleted: 0,
 	skipped: [],
 	failed: [],
 	cancelled: false,
@@ -17,6 +18,12 @@ describe('progress text', () => {
 		);
 		expect(progressText({ phase: 'uploading', done: 214, total: 1032 })).toBe(
 			'Indexing 214 / 1,032 pages',
+		);
+	});
+
+	it('mentions removed pages', () => {
+		expect(summaryText({ ...base, pagesDeleted: 3, filesUnchanged: 2 })).toBe(
+			'Indexing finished, 3 pages removed, 2 unchanged.',
 		);
 	});
 

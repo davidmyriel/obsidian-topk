@@ -29,5 +29,9 @@ custom endpoint if you set one. Your data lives in your own TopK project and col
 
 ## Removing your data
 
-Deleting the collection in the TopK console removes every uploaded image and embedding. A
-"Remove my data from TopK" command arrives in a later version, along with "Clear local index".
+- **Remove my data from TopK** deletes every page image and embedding this vault uploaded. Other
+  vaults that share the collection are not affected.
+- Deleting or excluding a file removes its pages from TopK the next time the vault is indexed.
+- **Clear local index** forgets what was indexed on this device; the next index replaces this
+  vault's pages in TopK.
+- Deleting the collection in the TopK console removes everything in it, from every vault.

@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, renameSync, utimesSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
@@ -7,7 +7,7 @@ import {
 	type IndexOptions,
 	DEFAULT_INDEX_OPTIONS,
 } from '../../src/indexer/indexer';
-import { emptyState, pathsByHash, type IndexState } from '../../src/indexer/state';
+import { emptyState, pathsByHash, resetUploads, type IndexState } from '../../src/indexer/state';
 import { TopKError } from '../../src/topk/client';
 import { FakeTopK } from '../../src/topk/fake';
 import { sha256Hex } from '../../src/util/hash';
@@ -72,7 +72,7 @@ describe('index pipeline on the fixture vault with a fake TopK', () => {
 		expect(state.hashes[talkHash]).toMatchObject({
 			status: 'indexed',
 			pageCount: 3,
-			ids: [`${talkHash}:1:0`, `${talkHash}:2:0`, `${talkHash}:3:0`],
+			ids: [1, 2, 3].map((p) => `vault-1:${talkHash}:${p}:0`),
 		});
 		expect([...client.docs.values()].every((d) => d.vaultId === 'vault-1')).toBe(true);
 
@@ -206,5 +206,71 @@ describe('prepareImage', () => {
 		});
 		expect(out.format).toBe('png');
 		expect(out.bytes).toBe(bytes);
+	});
+});
+
+describe('deletes', () => {
+	it('removes pages of deleted and excluded files from TopK, and nothing else', async () => {
+		const { root, client, state, deps } = await setup();
+		await runIndex(deps, options);
+		const talkHash = state.files['Talks/talk.pdf']?.hash ?? '';
+		rmSync(join(root, 'Talks', 'talk.pdf'));
+		const deleteRequestsBefore = client.calls.deleteRequests;
+		const summary = await runIndex(deps, options);
+		expect(summary).toMatchObject({ pagesDeleted: 3, pagesUploaded: 0 });
+		expect([...client.docs.values()].some((d) => d.contentHash === talkHash)).toBe(false);
+		expect(client.docs.size).toBe(FIXTURE_PAGE_COUNT - 3);
+		expect(state.hashes[talkHash]).toBeUndefined();
+		expect(client.calls.deleteRequests).toBe(deleteRequestsBefore + 1);
+
+		const excluded = await runIndex(deps, { ...options, excludeGlobs: ['Photos/**'] });
+		expect(excluded.pagesDeleted).toBe(1);
+		expect(client.docs.size).toBe(FIXTURE_PAGE_COUNT - 4);
+
+		// Nothing gone, nothing changed: no calls at all.
+		const calls = { ...client.calls };
+		await runIndex(deps, { ...options, excludeGlobs: ['Photos/**'] });
+		expect(client.calls).toEqual(calls);
+	});
+
+	it('keeps pages of a file that could not be read', async () => {
+		const { root, client, deps, reader } = await setup();
+		await runIndex(deps, options);
+		const png = join(root, 'market-share.png');
+		utimesSync(png, new Date(), new Date(Date.now() + 5000));
+		const read = reader.read.bind(reader);
+		reader.read = (path) =>
+			path === 'market-share.png' ? Promise.reject(new Error('locked')) : read(path);
+		const summary = await runIndex(deps, options);
+		expect(summary.pagesDeleted).toBe(0);
+		expect(summary.failed.map((f) => f.path)).toEqual(['market-share.png']);
+		expect(client.docs.size).toBe(FIXTURE_PAGE_COUNT);
+	});
+
+	it('purges the vault before re-uploading after a rebuild', async () => {
+		const { client, state, deps } = await setup();
+		await runIndex(deps, options);
+		resetUploads(state);
+		const summary = await runIndex(deps, options);
+		expect(summary.pagesUploaded).toBe(FIXTURE_PAGE_COUNT);
+		expect(state.needsPurge).toBeUndefined();
+		expect(client.docs.size).toBe(FIXTURE_PAGE_COUNT);
+	});
+
+	it('keeps two vaults that share a file and a collection apart', async () => {
+		const { root, client, deps } = await setup();
+		const other = emptyState('vault-2', 'pages');
+		await runIndex(deps, options);
+		await runIndex({ ...deps, reader: new DiskVault(root), state: other }, options);
+		expect(client.docs.size).toBe(FIXTURE_PAGE_COUNT * 2);
+		const [first] = await client.search(HERO_QUERY, 5, 'vault-1');
+		const [second] = await client.search(HERO_QUERY, 5, 'vault-2');
+		expect(first?.page).toBe(HERO.page);
+		expect(second?.page).toBe(HERO.page);
+
+		// Removing one vault's data leaves the other intact.
+		await client.deleteVault('vault-1');
+		expect(await client.search(HERO_QUERY, 5, 'vault-1')).toEqual([]);
+		expect((await client.search(HERO_QUERY, 5, 'vault-2'))[0]?.page).toBe(HERO.page);
 	});
 });

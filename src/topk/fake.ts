@@ -90,6 +90,15 @@ export class FakeTopK implements TopKClient {
 		});
 	}
 
+	deleteVault(vaultId: string): Promise<{ lsn: string }> {
+		return this.run(() => {
+			this.calls.deleteRequests++;
+			if (!this.collectionExists) return { lsn: '' };
+			for (const [id, doc] of this.docs) if (doc.vaultId === vaultId) this.docs.delete(id);
+			return { lsn: String(++this.lsn) };
+		});
+	}
+
 	search(query: string, k: number, vaultId: string): Promise<SearchHit[]> {
 		this.calls.search++;
 		return this.run(() => {

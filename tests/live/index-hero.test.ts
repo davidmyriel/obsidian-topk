@@ -67,5 +67,11 @@ describe.skipIf(!apiKey)('live TopK', () => {
 		);
 		expect(results[0]).toMatchObject({ path: HERO.path, page: HERO.page });
 		expect(pathsByHash(state).size).toBe(4);
+
+		// Remove my data: the vault filter deletes every page, read back at the delete's LSN.
+		const { lsn } = await client.deleteVault(state.vaultId);
+		expect(await client.search(HERO_QUERY, 20, state.vaultId, { requiredLsn: lsn })).toEqual(
+			[],
+		);
 	});
 });

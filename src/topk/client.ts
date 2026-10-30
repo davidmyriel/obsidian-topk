@@ -27,6 +27,8 @@ export interface TopKClient {
 	/** Upserts pages, batching as needed. Returns the LSN of the last write. */
 	upsertPages(pages: PageDoc[]): Promise<{ lsn: string }>;
 	deletePages(ids: string[]): Promise<{ lsn: string }>;
+	/** Deletes every page this vault uploaded. A missing collection counts as already empty. */
+	deleteVault(vaultId: string): Promise<{ lsn: string }>;
 	search(
 		query: string,
 		k: number,
@@ -96,9 +98,12 @@ export function toTopKError(err: unknown): TopKError {
 	}
 }
 
-/** `${contentHash}:${page}:${tile}`, the TopK document id (ADR-002). */
-export function pageId(contentHash: string, page: number, tile = 0): string {
-	return `${contentHash}:${page}:${tile}`;
+/**
+ * `${vaultId}:${contentHash}:${page}:${tile}`, the TopK document id (ADR-002, amended). The vault
+ * id keeps vaults that share a collection and a file from overwriting each other's pages.
+ */
+export function pageId(vaultId: string, contentHash: string, page: number, tile = 0): string {
+	return `${vaultId}:${contentHash}:${page}:${tile}`;
 }
 
 /**

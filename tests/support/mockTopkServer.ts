@@ -164,6 +164,20 @@ export async function startMockTopK(options: {
 			WriteService.method.deleteDocuments,
 			async (req, h) => {
 				requireCollection(h['x-topk-collection'] as string | undefined);
+				// The plugin deletes either by ids or by vault_id == literal.
+				const e = req.expr?.expr;
+				if (
+					e?.case === 'binaryOp' &&
+					e.value.left?.expr.case === 'field' &&
+					e.value.left.expr.value === 'vault_id'
+				) {
+					const right = e.value.right?.expr;
+					const vaultId = right?.case === 'literal' ? str(right.value) : '';
+					return create(
+						WriteService.method.deleteDocuments.output,
+						await fake.deleteVault(vaultId),
+					);
+				}
 				return create(
 					WriteService.method.deleteDocuments.output,
 					await fake.deletePages(req.ids),
