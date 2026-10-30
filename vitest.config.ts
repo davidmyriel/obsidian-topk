@@ -22,6 +22,15 @@ export default defineConfig({
 				},
 			},
 			{
+				// Bug reproductions from docs/qa; they fail until the bugs are fixed.
+				test: {
+					name: 'qa',
+					include: ['tests/qa/**/*.test.ts'],
+					environment: 'node',
+					testTimeout: 60_000,
+				},
+			},
+			{
 				test: {
 					name: 'live',
 					include: ['tests/live/**/*.test.ts'],
