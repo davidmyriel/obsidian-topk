@@ -41,6 +41,11 @@ export interface IndexState {
 	 * "Clear local index", or a migration from state version 1 (ids without the vault id).
 	 */
 	needsPurge?: boolean;
+	/**
+	 * Which vault folder this state belongs to (Obsidian's per-vault app id). A copied vault brings
+	 * the state file along; a different key means "copy", so it must not share the vault id.
+	 */
+	vaultKey?: string;
 }
 
 export function emptyState(vaultId: string, collection: string): IndexState {
@@ -115,6 +120,7 @@ export function parseState(raw: unknown, newVaultId: () => string, collection: s
 		hashes,
 	};
 	if (raw.needsPurge === true) state.needsPurge = true;
+	if (typeof raw.vaultKey === 'string' && raw.vaultKey) state.vaultKey = raw.vaultKey;
 	// Hashes uploaded to another collection are not searchable in this one.
 	if (raw.collection !== collection) {
 		state.hashes = {};
@@ -148,4 +154,45 @@ export function resetUploads(state: IndexState): void {
 	state.hashes = {};
 	delete state.lastLsn;
 	state.needsPurge = true;
+}
+
+/** Re-keys files at oldPath, or under it when it is a folder, to newPath. Returns true if any moved. */
+export function renamePaths(state: IndexState, oldPath: string, newPath: string): boolean {
+	let moved = false;
+	for (const path of Object.keys(state.files)) {
+		const target =
+			path === oldPath
+				? newPath
+				: path.startsWith(`${oldPath}/`)
+					? newPath + path.slice(oldPath.length)
+					: null;
+		const stamp = state.files[path];
+		if (target === null || !stamp) continue;
+		delete state.files[path];
+		state.files[target] = stamp;
+		moved = true;
+	}
+	return moved;
+}
+
+/**
+ * Binds the state to the vault it is loaded in (beta 1 F4). A state written by another vault, for
+ * example after the vault folder was copied, gets a fresh vault id and forgets its uploads: the
+ * original vault still owns the old id, so its pages must not be deleted or overwritten from here.
+ * File hashes are kept, so nothing needs re-hashing. Returns true when the state was re-keyed.
+ */
+export function bindToVault(
+	state: IndexState,
+	vaultKey: string,
+	newVaultId: () => string,
+): boolean {
+	if (state.vaultKey === vaultKey) return false;
+	const copied = state.vaultKey !== undefined;
+	state.vaultKey = vaultKey;
+	if (!copied) return false; // older state without a key: adopt it as this vault's
+	state.vaultId = newVaultId();
+	state.hashes = {};
+	delete state.lastLsn;
+	delete state.needsPurge;
+	return true;
 }

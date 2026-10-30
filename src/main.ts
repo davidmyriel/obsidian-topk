@@ -2,7 +2,7 @@ import { Notice, Plugin, TFile, TFolder, type TAbstractFile } from 'obsidian';
 import { ReindexScheduler } from './indexer/scheduler';
 import { sourceKind } from './render/pageSource';
 import { IndexController, IndexMaintenance, IndexStatusModal, StateStore } from './indexing';
-import { noteBaseName, pageLinkText, resultsNote, type ResolvedResult } from './search/links';
+import { noteBaseName, resultsNote, type ResolvedResult } from './search/links';
 import { VisualSearchModal, type LastSearch } from './search/searchModal';
 import { TopKSettingTab } from './settings';
 import { loadSettings, type Settings } from './settingsModel';
@@ -89,7 +89,13 @@ export default class TopKVisualSearchPlugin extends Plugin {
 			this.registerEvent(this.app.vault.on('create', changed));
 			this.registerEvent(this.app.vault.on('modify', changed));
 			this.registerEvent(this.app.vault.on('delete', changed));
-			this.registerEvent(this.app.vault.on('rename', changed));
+			this.registerEvent(
+				this.app.vault.on('rename', (file, oldPath) => {
+					// Results follow a rename right away instead of after the next run (beta 1 F8).
+					void this.stateStore.rename(oldPath, file.path);
+					changed(file);
+				}),
+			);
 			// Catch changes made while Obsidian was closed, and finish an interrupted run.
 			this.scheduler?.request();
 		});
@@ -111,12 +117,21 @@ export default class TopKVisualSearchPlugin extends Plugin {
 	}
 
 	/** Opens a PDF at the result's page, or the image file. */
+	/**
+	 * Opens a PDF at the result's page, or the image file. Opens the file object rather than a
+	 * link string: link text breaks on `#` or `|` in names, and an unresolved link would create an
+	 * empty note (beta 1 F7, F8).
+	 */
 	async openResult(result: ResolvedResult): Promise<void> {
-		await this.app.workspace.openLinkText(
-			pageLinkText(result.path, result.page, result.kind),
-			'',
-			false,
-		);
+		const file = this.app.vault.getFileByPath(result.path);
+		if (!file) {
+			new Notice(`${result.path} no longer exists.`);
+			return;
+		}
+		const subpath = result.kind === 'pdf_page' ? `#page=${result.page}` : undefined;
+		await this.app.workspace
+			.getLeaf(false)
+			.openFile(file, subpath ? { eState: { subpath } } : {});
 	}
 
 	/** Writes the last search's results as a note of links and opens it. */
@@ -131,7 +146,7 @@ export default class TopKVisualSearchPlugin extends Plugin {
 		for (let i = 2; this.app.vault.getAbstractFileByPath(path); i++) path = `${base} ${i}.md`;
 		const file = await this.app.vault.create(
 			path,
-			resultsNote(last.query, last.results, new Date()),
+			resultsNote(last.query, last.results, new Date(), this.app.vault.getName()),
 		);
 		await this.app.workspace.getLeaf(false).openFile(file);
 	}

@@ -314,17 +314,32 @@ export async function runIndex(
 		void save();
 	};
 
-	const uploader = new Uploader(client, options, (pages, lsn) => {
-		if (lsn) state.lastLsn = lsn;
-		summary.pagesUploaded += pages.length;
-		for (const page of pages) {
+	const uploader = new Uploader(
+		client,
+		options,
+		(pages, lsn) => {
+			if (lsn) state.lastLsn = lsn;
+			summary.pagesUploaded += pages.length;
+			for (const page of pages) {
+				const job = jobs.get(page.contentHash);
+				if (!job) continue;
+				job.ids.push(page.id);
+				job.outstanding--;
+				finishIfDone(job);
+			}
+		},
+		// TopK refused this page's image: the file fails, the rest of the run continues.
+		(page, error) => {
 			const job = jobs.get(page.contentHash);
-			if (!job) continue;
-			job.ids.push(page.id);
+			if (!job) return;
 			job.outstanding--;
-			finishIfDone(job);
-		}
-	});
+			if (job.failed) return;
+			job.failed = true;
+			record(job, 'failed', error.message);
+			summary.failed.push({ path: job.item.path, reason: error.message });
+			void save();
+		},
+	);
 
 	try {
 		for (const item of plan.work) {
