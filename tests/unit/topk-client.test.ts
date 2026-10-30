@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { batchByBytes, pageId, toTopKError, TopKError, type PageDoc } from '../../src/topk/client';
 import { FakeTopK, labelScorer } from '../../src/topk/fake';
-import { GrpcCode, GrpcError } from '../../src/topk/grpc';
+import { GrpcCode, GrpcError, TopKErrorCode } from '../../src/topk/grpc';
 import { assertSchema } from '../../src/topk/grpcClient';
 import { createCollectionRequest } from '../../src/topk/requests';
 import { redact } from '../../src/util/logger';
@@ -51,10 +51,20 @@ describe('toTopKError', () => {
 		[GrpcCode.INVALID_ARGUMENT, 'authorization header not provided', 'auth'],
 		[GrpcCode.INVALID_ARGUMENT, 'image exceeds 512KB', 'invalid'],
 		[GrpcCode.UNAVAILABLE, 'connect ECONNREFUSED', 'network'],
-		[GrpcCode.RESOURCE_EXHAUSTED, 'slow down', 'rate_limit'],
+		[GrpcCode.RESOURCE_EXHAUSTED, 'credits exhausted', 'quota'],
 		[GrpcCode.INTERNAL, 'boom', 'unknown'],
 	])('maps code %i "%s" to %s', (code, details, kind) => {
 		expect(toTopKError(new GrpcError(code, details)).kind).toBe(kind);
+	});
+
+	it('maps TopK SlowDown (x-topk-error-code 1429) to rate_limit', () => {
+		const err = new GrpcError(
+			GrpcCode.RESOURCE_EXHAUSTED,
+			'slow down',
+			200,
+			TopKErrorCode.SLOW_DOWN,
+		);
+		expect(toTopKError(err).kind).toBe('rate_limit');
 	});
 });
 

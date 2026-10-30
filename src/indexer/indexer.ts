@@ -1,4 +1,4 @@
-import { pageId, TopKError, type PageDoc, type TopKClient } from '../topk/client';
+import { pageId, type TopKClient } from '../topk/client';
 import {
 	countPages,
 	pageImages,
@@ -8,6 +8,7 @@ import {
 } from '../render/pageSource';
 import { sha256Hex } from '../util/hash';
 import { compileFilter, type PathFilter } from './globs';
+import { Uploader } from './uploader';
 import type { FileStamp, IndexState } from './state';
 
 // The index pipeline: scan the vault, hash changed files, render pages of files whose content is
@@ -35,6 +36,8 @@ export interface IndexOptions extends PathFilter {
 	maxImageBytes: number;
 	/** Upload once this many image bytes are buffered, to cap memory. */
 	flushBytes: number;
+	/** Upsert requests in flight at once. */
+	concurrency: number;
 }
 
 export const DEFAULT_INDEX_OPTIONS: Omit<
@@ -44,6 +47,7 @@ export const DEFAULT_INDEX_OPTIONS: Omit<
 	quality: 0.85,
 	maxImageBytes: 512 * 1024,
 	flushBytes: 4 * 1024 * 1024,
+	concurrency: 4,
 };
 
 export interface WorkItem {
@@ -183,9 +187,9 @@ export async function planIndex(
 }
 
 /**
- * Indexes the vault. With nothing to upload it makes no TopK calls at all. A TopKError (bad key,
- * offline, wrong schema) stops the run after saving progress; other per-file errors are recorded
- * and the run continues.
+ * Indexes the vault. With nothing to upload it makes no TopK calls at all. An upload error (bad
+ * key, offline after retries, wrong schema) stops the run after saving progress; other per-file
+ * errors are recorded and the run continues.
  */
 export async function runIndex(
 	deps: IndexDeps,
@@ -231,80 +235,109 @@ export async function runIndex(
 	let done = 0;
 	deps.onProgress?.({ phase: 'uploading', done, total: plan.totalPages });
 
-	for (const item of plan.work) {
+	// Per-file progress: a file is indexed once it is fully rendered and every batch holding one of
+	// its pages has landed. Batches can mix pages from several files.
+	interface FileJob {
+		item: WorkItem;
+		ids: string[];
+		outstanding: number;
+		rendered: boolean;
+		failed: boolean;
+	}
+	const jobs = new Map<string, FileJob>();
+	const record = (
+		job: FileJob,
+		status: 'indexed' | 'partial' | 'failed',
+		reason?: string,
+	): void => {
+		state.hashes[job.item.hash] = {
+			kind: job.item.kind,
+			extension: job.item.extension,
+			pageCount: job.item.pageCount,
+			ids: [...job.ids],
+			status,
+			...(reason ? { reason } : {}),
+			updatedAt: now(),
+		};
+	};
+	// Saves are chained so concurrent batch completions never write the state out of order.
+	let saving: Promise<void> = Promise.resolve();
+	const save = (): Promise<void> => (saving = saving.then(() => deps.save(state)));
+	const finishIfDone = (job: FileJob): void => {
+		if (!job.rendered || job.outstanding > 0 || job.failed) return;
+		record(job, 'indexed');
+		summary.filesIndexed++;
+		jobs.delete(job.item.hash);
+		void save();
+	};
+
+	const uploader = new Uploader(client, options, (pages, lsn) => {
+		if (lsn) state.lastLsn = lsn;
+		summary.pagesUploaded += pages.length;
+		for (const page of pages) {
+			const job = jobs.get(page.contentHash);
+			if (!job) continue;
+			job.ids.push(page.id);
+			job.outstanding--;
+			finishIfDone(job);
+		}
+	});
+
+	try {
+		for (const item of plan.work) {
+			if (deps.signal?.aborted) break;
+			const job: FileJob = { item, ids: [], outstanding: 0, rendered: false, failed: false };
+			jobs.set(item.hash, job);
+			try {
+				const data = await deps.reader.read(item.path);
+				for await (const img of pageImages(deps.env, item.kind, item.extension, data, {
+					maxPixels: options.maxPixels,
+					quality: options.quality,
+					maxBytes: options.maxImageBytes,
+				})) {
+					job.outstanding++;
+					await uploader.add({
+						id: pageId(item.hash, img.page, img.tile),
+						vaultId: state.vaultId,
+						contentHash: item.hash,
+						page: img.page,
+						tile: img.tile,
+						kind: item.kind === 'pdf' ? 'pdf_page' : 'image',
+						image: { format: img.format, bytes: img.bytes },
+					});
+					deps.onProgress?.({
+						phase: 'uploading',
+						done: ++done,
+						total: plan.totalPages,
+						path: item.path,
+					});
+					if (deps.signal?.aborted) break;
+				}
+				if (deps.signal?.aborted) break;
+				job.rendered = true;
+				finishIfDone(job);
+			} catch (err) {
+				if (err === uploader.error) throw err;
+				job.failed = true;
+				record(job, 'failed', errorText(err));
+				summary.failed.push({ path: item.path, reason: errorText(err) });
+				void save();
+			}
+		}
 		if (deps.signal?.aborted) {
 			summary.cancelled = true;
-			break;
+			await uploader.abandon();
+		} else {
+			await uploader.drain();
 		}
-		const ids: string[] = [];
-		let buffer: PageDoc[] = [];
-		let buffered = 0;
-		const flush = async (): Promise<void> => {
-			if (buffer.length === 0) return;
-			const { lsn } = await client.upsertPages(buffer);
-			if (lsn) state.lastLsn = lsn;
-			for (const p of buffer) ids.push(p.id);
-			summary.pagesUploaded += buffer.length;
-			buffer = [];
-			buffered = 0;
-		};
-		const record = (status: 'indexed' | 'partial' | 'failed', reason?: string): void => {
-			state.hashes[item.hash] = {
-				kind: item.kind,
-				extension: item.extension,
-				pageCount: item.pageCount,
-				ids,
-				status,
-				...(reason ? { reason } : {}),
-				updatedAt: now(),
-			};
-		};
-
-		try {
-			const data = await deps.reader.read(item.path);
-			for await (const img of pageImages(deps.env, item.kind, item.extension, data, {
-				maxPixels: options.maxPixels,
-				quality: options.quality,
-				maxBytes: options.maxImageBytes,
-			})) {
-				buffer.push({
-					id: pageId(item.hash, img.page, img.tile),
-					vaultId: state.vaultId,
-					contentHash: item.hash,
-					page: img.page,
-					tile: img.tile,
-					kind: item.kind === 'pdf' ? 'pdf_page' : 'image',
-					image: { format: img.format, bytes: img.bytes },
-				});
-				buffered += img.bytes.length;
-				deps.onProgress?.({
-					phase: 'uploading',
-					done: ++done,
-					total: plan.totalPages,
-					path: item.path,
-				});
-				if (buffered >= options.flushBytes) await flush();
-				if (deps.signal?.aborted) break;
-			}
-			await flush();
-			if (deps.signal?.aborted) {
-				record('partial', 'cancelled');
-				summary.cancelled = true;
-			} else {
-				record('indexed');
-				summary.filesIndexed++;
-			}
-		} catch (err) {
-			if (err instanceof TopKError) {
-				record('partial', err.message);
-				await deps.save(state);
-				throw err;
-			}
-			record('failed', errorText(err));
-			summary.failed.push({ path: item.path, reason: errorText(err) });
-		}
-		await deps.save(state);
-		if (summary.cancelled) break;
+	} catch (err) {
+		await uploader.abandon();
+		for (const job of jobs.values()) if (!job.failed) record(job, 'partial', errorText(err));
+		await save();
+		throw err;
 	}
+	// Files still open here were interrupted by cancel.
+	for (const job of jobs.values()) if (!job.failed) record(job, 'partial', 'cancelled');
+	await save();
 	return summary;
 }
