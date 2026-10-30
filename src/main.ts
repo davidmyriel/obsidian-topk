@@ -1,4 +1,6 @@
-import { Notice, Plugin } from 'obsidian';
+import { Notice, Plugin, TFile, TFolder, type TAbstractFile } from 'obsidian';
+import { ReindexScheduler } from './indexer/scheduler';
+import { sourceKind } from './render/pageSource';
 import { IndexController, IndexMaintenance, StateStore } from './indexing';
 import { noteBaseName, pageLinkText, resultsNote, type ResolvedResult } from './search/links';
 import { VisualSearchModal, type LastSearch } from './search/searchModal';
@@ -68,6 +70,31 @@ export default class TopKVisualSearchPlugin extends Plugin {
 			callback: () => void this.saveResultsNote(),
 		});
 		this.addRibbonIcon('scan-search', 'Visual search', () => this.openSearch());
+
+		// Background indexing (ADR-005). Events are registered after the layout is ready, because
+		// Obsidian fires a create event for every file while it loads the vault.
+		this.scheduler = new ReindexScheduler(() => this.indexer.run({ background: true }), 5_000, {
+			setTimeout: (fn, ms) => window.setTimeout(fn, ms),
+			clearTimeout: (h) => window.clearTimeout(h),
+		});
+		this.app.workspace.onLayoutReady(() => {
+			const changed = (file: TAbstractFile): void => {
+				if (this.isIndexable(file)) this.scheduler?.request();
+			};
+			this.registerEvent(this.app.vault.on('create', changed));
+			this.registerEvent(this.app.vault.on('modify', changed));
+			this.registerEvent(this.app.vault.on('delete', changed));
+			this.registerEvent(this.app.vault.on('rename', changed));
+			// Catch changes made while Obsidian was closed, and finish an interrupted run.
+			this.scheduler?.request();
+		});
+	}
+
+	private scheduler: ReindexScheduler | null = null;
+
+	private isIndexable(file: TAbstractFile): boolean {
+		if (file instanceof TFolder) return true; // a folder rename or delete moves its files
+		return file instanceof TFile && sourceKind(file.extension) !== null;
 	}
 
 	openSearch(): void {
@@ -105,6 +132,7 @@ export default class TopKVisualSearchPlugin extends Plugin {
 	}
 
 	override onunload(): void {
+		this.scheduler?.dispose();
 		this.indexer.cancel();
 	}
 

@@ -30,6 +30,8 @@ export interface RenderEnv {
 }
 
 export interface PageImageOptions {
+	/** PDF pages to skip without rendering (already uploaded). */
+	skipPage?: (page: number) => boolean;
 	/** Upper bound on width × height of each uploaded image (ADR-003). */
 	maxPixels: number;
 	quality: number;
@@ -81,6 +83,7 @@ export async function* pageImages(
 			format: 'jpeg',
 			quality: options.quality,
 			maxBytes: options.maxBytes,
+			...(options.skipPage ? { skipPage: options.skipPage } : {}),
 			...(env.documentOptions ? { documentOptions: env.documentOptions } : {}),
 		})) {
 			yield { page: p.page, tile: 0, format: p.format, bytes: p.bytes };

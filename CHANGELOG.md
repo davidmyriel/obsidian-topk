@@ -70,3 +70,7 @@ All notable changes to this project are documented here. The format follows
 - Fix: TopK ids now include the vault id (`vault:hash:page:tile`), so vaults sharing a collection
   and a file no longer overwrite each other's pages. Existing indexes migrate on the next run:
   this vault's old pages are deleted and uploaded again.
+- Live updates (ADR-005): the index updates itself 5 seconds after PDFs or images are added,
+  changed, renamed or deleted, and when Obsidian starts, catching changes made while it was closed.
+  Background runs stay quiet unless something fails. Setting **Index automatically** (on by
+  default). An interrupted file now resumes after its last uploaded page instead of starting over.

@@ -22,8 +22,10 @@ OCR.
    result to open the PDF at that page.
 5. **Save results as note** writes the results as `[[file.pdf#page=N]]` links.
 
-Running **Index vault** again only uploads files whose content changed, and removes pages of files
-you deleted or excluded. Renaming or moving files costs nothing, because pages are identified by a
+After the first index, the plugin keeps the index up to date on its own: a few seconds after you
+add, change, rename or delete a PDF or image, and when Obsidian starts (turn off **Index
+automatically** in settings to do it by hand). Running **Index vault** only uploads files whose
+content changed, and removes pages of files you deleted or excluded. Renaming or moving files costs nothing, because pages are identified by a
 hash of the file content.
 
 Other commands: **Rebuild index** (re-uploads everything with the current settings), **Remove my
