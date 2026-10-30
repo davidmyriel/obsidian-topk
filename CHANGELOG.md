@@ -57,3 +57,9 @@ All notable changes to this project are documented here. The format follows
   now offers "Full detail (1.3 MP)" and "Smaller uploads (0.66 MP)". Pages indexed earlier keep their
   old renders until the file changes. Pricing and resolution findings are in
   `docs/spikes/E-topk-embed-v1.md`.
+- Network resilience: TopK calls retry like the official SDK (connection errors 3 times with
+  jittered backoff from 100 ms to 10 s, read-after-write for 2 s), plus a longer backoff when TopK
+  asks clients to slow down. Quota errors stop indexing with a message to check credits. If TopK
+  stays unreachable, indexing pauses ("Offline, will resume…") and continues when the connection
+  returns. Uploads run in parallel ("Parallel uploads" setting, default 4) and a file counts as
+  indexed only when all its pages have landed.

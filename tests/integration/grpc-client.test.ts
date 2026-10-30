@@ -87,3 +87,73 @@ describe('GrpcTopKClient against the mock TopK server', () => {
 		client.close();
 	});
 });
+
+describe('GrpcTopKClient retries', () => {
+	const fast = {
+		clock: { now: () => Date.now(), sleep: () => Promise.resolve(), random: () => 0 },
+	};
+
+	it('retries UNAVAILABLE and SlowDown transparently', async () => {
+		mock = await startMockTopK({ apiKey: 'k' });
+		const client = new GrpcTopKClient({
+			apiKey: 'k',
+			collection: 'c',
+			region: 'x',
+			endpoint: mock.origin,
+			retry: fast,
+		});
+		await client.ensureCollection();
+		mock.failNext(2, {
+			code: 14,
+			message: 'connection reset',
+			path: '/topk.data.v1.WriteService/UpsertDocuments',
+		});
+		mock.failNext(1, {
+			code: 8,
+			message: 'slow down',
+			topkCode: 1429,
+			path: '/topk.data.v1.WriteService/UpsertDocuments',
+		});
+		await client.upsertPages([page(1)]);
+		expect(mock.calls.filter((c) => c.endsWith('UpsertDocuments'))).toHaveLength(4);
+		expect(mock.fake.docs.size).toBe(1);
+		client.close();
+	});
+
+	it('does not retry a quota error and reports it as quota', async () => {
+		mock = await startMockTopK({ apiKey: 'k' });
+		const client = new GrpcTopKClient({
+			apiKey: 'k',
+			collection: 'c',
+			region: 'x',
+			endpoint: mock.origin,
+			retry: fast,
+		});
+		await client.ensureCollection();
+		mock.failNext(1, { code: 8, message: 'credits exhausted' });
+		const err = await client.upsertPages([page(1)]).catch((e: unknown) => e);
+		expect((err as TopKError).kind).toBe('quota');
+		expect(mock.calls.filter((c) => c.endsWith('UpsertDocuments'))).toHaveLength(1);
+		client.close();
+	});
+
+	it('waits out an LSN that is not visible yet', async () => {
+		mock = await startMockTopK({ apiKey: 'k' });
+		const client = new GrpcTopKClient({
+			apiKey: 'k',
+			collection: 'c',
+			region: 'x',
+			endpoint: mock.origin,
+			retry: fast,
+		});
+		await client.ensureCollection();
+		mock.failNext(3, {
+			code: 9,
+			message: 'lsn not ready',
+			topkCode: 1000,
+			path: '/topk.data.v1.QueryService/Query',
+		});
+		await expect(client.search('x', 5, 'vault-1', { requiredLsn: '1' })).resolves.toEqual([]);
+		client.close();
+	});
+});
