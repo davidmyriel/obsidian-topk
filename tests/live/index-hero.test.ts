@@ -46,7 +46,7 @@ describe.skipIf(!apiKey)('live TopK', () => {
 				includeFolders: [],
 				excludeGlobs: [],
 				maxPagesPerFile: 300,
-				longSide: 1024,
+				maxPixels: 1_310_720,
 			},
 		);
 		expect(summary).toMatchObject({

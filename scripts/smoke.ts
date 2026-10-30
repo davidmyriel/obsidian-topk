@@ -2,6 +2,7 @@
 // collection, run the hero query, check page 3 ranks first, and delete the collection.
 //
 //   TOPK_API_KEY=... npx tsx scripts/smoke.ts [--record] [--region aws-us-east-1-elastica]
+//                                             [--max-pixels 1310720 | --long-side 1024]
 //
 // --record saves each request and response to tests/fixtures/topk/ (binary and JSON). Only
 // message bodies are written, never headers, so the key cannot end up in a fixture.
@@ -45,7 +46,8 @@ const { values } = parseArgs({
 	options: {
 		record: { type: 'boolean', default: false },
 		region: { type: 'string', default: process.env.TOPK_REGION ?? 'aws-us-east-1-elastica' },
-		'long-side': { type: 'string', default: '1024' },
+		'max-pixels': { type: 'string', default: '1310720' },
+		'long-side': { type: 'string' },
 	},
 });
 
@@ -106,7 +108,9 @@ try {
 	const vaultId = randomUUID();
 	const pages: PageDoc[] = [];
 	for await (const p of renderPdfPages(await loadNodePdfJs(), pdf, nodeCanvasFactory, {
-		longSide: Number(values['long-side']),
+		...(values['long-side']
+			? { longSide: Number(values['long-side']) }
+			: { maxPixels: Number(values['max-pixels']) }),
 		format: 'jpeg',
 		quality: 0.85,
 		maxBytes: 512 * 1024,

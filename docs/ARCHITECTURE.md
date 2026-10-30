@@ -37,8 +37,8 @@ integration, contract and live tests exercise them. ESLint enforces the boundary
 - **Embedding and schema (ADR-002):** TopK embeds on upsert. Each page is a document with a
   `page_image` image field and a semantic index; search uses `semantic_similarity` filtered by a
   per-vault id. Page images are stored in TopK.
-- **Render settings (ADR-003):** long side 1024 px by default, JPEG quality 0.85, stepped down to
-  fit TopK's 512 KB image limit, one page at a time.
+- **Render settings (ADR-003):** each page is scaled to the model's pixel budget (about 1.3 MP),
+  JPEG quality 0.85, stepped down to fit TopK's 512 KB image limit, one page at a time.
 - **E2E (ADR-004):** WebdriverIO with `wdio-obsidian-service`, minimum and latest Obsidian.
 
 ## Index state
