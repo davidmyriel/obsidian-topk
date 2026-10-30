@@ -3,11 +3,13 @@ import { browser } from '@wdio/globals';
 export const PLUGIN_ID = 'topk-visual-search';
 
 /** Points the plugin at the mock TopK started in wdio.conf.mts, with its key in secret storage. */
-export async function useMockTopK(options: { uploadConsent?: boolean } = {}): Promise<void> {
+export async function useMockTopK(
+	options: { uploadConsent?: boolean; autoIndex?: boolean } = {},
+): Promise<void> {
 	const origin = process.env.MOCK_TOPK_ORIGIN;
 	if (!origin) throw new Error('MOCK_TOPK_ORIGIN not set; run through wdio.conf.mts');
 	await browser.executeObsidian(
-		async ({ app, plugins }, endpoint: string, consent: boolean) => {
+		async ({ app, plugins }, endpoint: string, consent: boolean, auto: boolean) => {
 			app.secretStorage.setSecret('topk-e2e', 'e2e-key');
 			const plugin = plugins.topkVisualSearch as unknown as {
 				settings: Record<string, unknown>;
@@ -19,11 +21,14 @@ export async function useMockTopK(options: { uploadConsent?: boolean } = {}): Pr
 				collection: `e2e-${Math.random().toString(36).slice(2, 8)}`,
 				maxPixels: 1_310_720,
 				uploadConsent: consent,
+				// Specs control indexing themselves unless they test background runs.
+				autoIndex: auto,
 			});
 			await plugin.saveSettings();
 		},
 		origin,
 		options.uploadConsent ?? true,
+		options.autoIndex ?? false,
 	);
 }
 

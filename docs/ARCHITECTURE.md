@@ -39,6 +39,8 @@ integration, contract and live tests exercise them. ESLint enforces the boundary
   per-vault id. Page images are stored in TopK.
 - **Render settings (ADR-003):** each page is scaled to the model's pixel budget (about 1.3 MP),
   JPEG quality 0.85, stepped down to fit TopK's 512 KB image limit, one page at a time.
+- **Live updates and resume (ADR-005):** vault changes trigger a debounced incremental index; an
+  interrupted file resumes after its last uploaded page.
 - **E2E (ADR-004):** WebdriverIO with `wdio-obsidian-service`, minimum and latest Obsidian.
 
 ## Index state

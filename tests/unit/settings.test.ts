@@ -23,6 +23,7 @@ describe('settings validation', () => {
 				maxPagesPerFile: 50,
 				maxPixels: 655_360,
 				debugLog: true,
+				autoIndex: false,
 				uploadConsent: true,
 			},
 			'.obsidian',
@@ -35,6 +36,7 @@ describe('settings validation', () => {
 			maxPagesPerFile: 50,
 			maxPixels: 655_360,
 			uploadConsent: true,
+			autoIndex: false,
 		});
 	});
 

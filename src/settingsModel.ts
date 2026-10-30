@@ -28,6 +28,8 @@ export interface Settings {
 	maxPixels: number;
 	/** Upload requests in flight at once (1–8). */
 	concurrency: number;
+	/** Re-index in the background when files change and at startup (ADR-005). */
+	autoIndex: boolean;
 	debugLog: boolean;
 	/** Set once the user has confirmed the first-run upload dialog. */
 	uploadConsent: boolean;
@@ -44,6 +46,7 @@ export function defaultSettings(configDir: string): Settings {
 		maxPagesPerFile: 300,
 		maxPixels: MODEL_MAX_PIXELS,
 		concurrency: 4,
+		autoIndex: true,
 		debugLog: false,
 		uploadConsent: false,
 	};
@@ -108,6 +111,7 @@ export function loadSettings(raw: unknown, configDir: string): Settings {
 	) {
 		s.concurrency = Math.min(raw.concurrency, 8);
 	}
+	if (typeof raw.autoIndex === 'boolean') s.autoIndex = raw.autoIndex;
 	if (typeof raw.debugLog === 'boolean') s.debugLog = raw.debugLog;
 	if (typeof raw.uploadConsent === 'boolean') s.uploadConsent = raw.uploadConsent;
 	return s;

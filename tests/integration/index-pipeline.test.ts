@@ -274,3 +274,34 @@ describe('deletes', () => {
 		expect((await client.search(HERO_QUERY, 5, 'vault-2'))[0]?.page).toBe(HERO.page);
 	});
 });
+
+describe('resume', () => {
+	it('continues an interrupted file after its last uploaded page, with no duplicates', async () => {
+		const { client, state, deps } = await setup();
+		const controller = new AbortController();
+		// One page per request so "uploaded" is exact; stop during handbook.pdf (15 pages).
+		const oneByOne = { ...options, flushBytes: 1, concurrency: 1 };
+		await runIndex(
+			{
+				...deps,
+				signal: controller.signal,
+				onProgress: (p) => p.phase === 'uploading' && p.done === 6 && controller.abort(),
+			},
+			oneByOne,
+		);
+		const handbook = state.hashes[state.files['Docs/handbook.pdf']?.hash ?? ''];
+		expect(handbook?.status).toBe('partial');
+		const landed = handbook?.ids.length ?? 0;
+		expect(landed).toBeGreaterThan(0);
+		expect(landed).toBeLessThan(15);
+
+		const before = client.calls.upsertedPages;
+		const summary = await runIndex(deps, oneByOne);
+		expect(summary.pagesUploaded).toBe(FIXTURE_PAGE_COUNT - before);
+		// Every page went up exactly once across both runs.
+		expect(client.calls.upsertedPages).toBe(FIXTURE_PAGE_COUNT);
+		expect(client.docs.size).toBe(FIXTURE_PAGE_COUNT);
+		expect(Object.values(state.hashes).every((h) => h.status === 'indexed')).toBe(true);
+		expect(state.hashes[state.files['Docs/handbook.pdf']?.hash ?? '']?.ids).toHaveLength(15);
+	});
+});

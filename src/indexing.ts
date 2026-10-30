@@ -118,17 +118,39 @@ export class IndexController {
 		this.controller?.abort();
 	}
 
-	async run(): Promise<void> {
-		if (this.controller) {
-			new Notice('Indexing is already running.');
-			return;
+	/**
+	 * Runs Index vault. A background run (triggered by vault changes or startup, ADR-005) is
+	 * silent: it skips when auto-indexing is off, consent or the key is missing, shows the status
+	 * bar only once uploads start, and notifies only about failures. It waits for a run in progress.
+	 */
+	async run(options: { background?: boolean } = {}): Promise<void> {
+		const background = options.background ?? false;
+		if (this.current) {
+			if (!background) {
+				new Notice('Indexing is already running.');
+				return;
+			}
+			await this.current;
 		}
+		if (background) {
+			const s = this.plugin.settings;
+			if (!s.autoIndex || !s.uploadConsent || !this.plugin.apiKey()) return;
+		}
+		this.current = this.runOnce(background).finally(() => (this.current = null));
+		await this.current;
+	}
+
+	private current: Promise<void> | null = null;
+
+	private async runOnce(background: boolean): Promise<void> {
 		const client = this.plugin.createClient();
 		if (!client) return;
 		const controller = new AbortController();
 		this.controller = controller;
-		this.statusEl.show();
-		this.textEl.setText('Scanning…');
+		if (!background) {
+			this.statusEl.show();
+			this.textEl.setText('Scanning…');
+		}
 		const store = this.plugin.stateStore;
 		try {
 			const state = await store.load();
@@ -139,8 +161,11 @@ export class IndexController {
 				state,
 				save: (s: IndexState) => store.save(s),
 				signal: controller.signal,
-				onProgress: (p: Parameters<typeof progressText>[0]) =>
-					this.textEl.setText(progressText(p)),
+				onProgress: (p: Parameters<typeof progressText>[0]) => {
+					if (background && p.phase === 'scanning') return;
+					this.statusEl.show();
+					this.textEl.setText(progressText(p));
+				},
 			};
 			const options = indexOptions(this.plugin);
 			const plan = await planIndex(deps, options);
@@ -150,6 +175,7 @@ export class IndexController {
 				unchanged: plan.unchanged,
 			});
 			if (plan.work.length > 0 && !this.plugin.settings.uploadConsent) {
+				if (background) return;
 				this.statusEl.hide();
 				if (
 					!(await confirmFirstUpload(
@@ -183,7 +209,7 @@ export class IndexController {
 					onResume: () => this.textEl.setText('Resuming…'),
 				},
 			);
-			new Notice(summaryText(summary), 8_000);
+			if (!background || summary.failed.length > 0) new Notice(summaryText(summary), 8_000);
 			for (const f of summary.failed) this.plugin.log.debug('index failed', f.path, f.reason);
 		} catch (err) {
 			new Notice(
