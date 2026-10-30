@@ -22,8 +22,12 @@ OCR.
    result to open the PDF at that page.
 5. **Save results as note** writes the results as `[[file.pdf#page=N]]` links.
 
-Running **Index vault** again only uploads files whose content changed. Renaming or moving files
-costs nothing, because pages are identified by a hash of the file content.
+Running **Index vault** again only uploads files whose content changed, and removes pages of files
+you deleted or excluded. Renaming or moving files costs nothing, because pages are identified by a
+hash of the file content.
+
+Other commands: **Rebuild index** (re-uploads everything with the current settings), **Remove my
+data from TopK**, and **Clear local index**.
 
 Indexed file types: PDF, PNG, JPEG and WebP.
 

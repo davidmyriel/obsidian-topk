@@ -1,5 +1,5 @@
 import { Notice, Plugin } from 'obsidian';
-import { IndexController, StateStore } from './indexing';
+import { IndexController, IndexMaintenance, StateStore } from './indexing';
 import { noteBaseName, pageLinkText, resultsNote, type ResolvedResult } from './search/links';
 import { VisualSearchModal, type LastSearch } from './search/searchModal';
 import { TopKSettingTab } from './settings';
@@ -26,6 +26,7 @@ export default class TopKVisualSearchPlugin extends Plugin {
 		this.log.enabled = this.settings.debugLog;
 		this.addSettingTab(new TopKSettingTab(this.app, this));
 		this.indexer = new IndexController(this);
+		const maintenance = new IndexMaintenance(this, this.indexer);
 
 		this.addCommand({
 			id: 'index-vault',
@@ -40,6 +41,21 @@ export default class TopKVisualSearchPlugin extends Plugin {
 				if (!checking) this.indexer.cancel();
 				return true;
 			},
+		});
+		this.addCommand({
+			id: 'rebuild-index',
+			name: 'Rebuild index',
+			callback: () => void maintenance.rebuild(),
+		});
+		this.addCommand({
+			id: 'remove-data-from-topk',
+			name: 'Remove my data from TopK',
+			callback: () => void maintenance.removeData(),
+		});
+		this.addCommand({
+			id: 'clear-local-index',
+			name: 'Clear local index',
+			callback: () => void maintenance.clearLocal(),
 		});
 		this.addCommand({
 			id: 'visual-search',

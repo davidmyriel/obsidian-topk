@@ -11,7 +11,7 @@ afterEach(async () => {
 });
 
 const page = (n: number, bytes = 100): PageDoc => ({
-	id: pageId('hash', n),
+	id: pageId('vault-1', 'hash', n),
 	vaultId: 'vault-1',
 	contentHash: 'hash',
 	page: n,
@@ -47,7 +47,7 @@ describe('GrpcTopKClient against the mock TopK server', () => {
 			requiredLsn: lsn,
 		});
 		expect(hits[0]).toMatchObject({
-			id: 'hash:3:0',
+			id: 'vault-1:hash:3:0',
 			page: 3,
 			kind: 'pdf_page',
 			contentHash: 'hash',
@@ -55,7 +55,7 @@ describe('GrpcTopKClient against the mock TopK server', () => {
 		expect(hits).toHaveLength(4);
 		expect(await client.search('x', 20, 'another-vault')).toEqual([]);
 
-		await client.deletePages(['hash:1:0']);
+		await client.deletePages(['vault-1:hash:1:0']);
 		expect(await client.search('x', 20, 'vault-1')).toHaveLength(3);
 		client.close();
 	});

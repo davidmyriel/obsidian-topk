@@ -3,7 +3,7 @@ import type { SourceKind } from '../render/pageSource';
 // Local index state, persisted as JSON in the plugin folder. Paths live only here; TopK sees
 // content hashes (ADR-002). Bump STATE_VERSION when the shape changes.
 
-export const STATE_VERSION = 1;
+export const STATE_VERSION = 2;
 
 export interface FileStamp {
 	hash: string;
@@ -36,6 +36,11 @@ export interface IndexState {
 	files: Record<string, FileStamp>;
 	hashes: Record<string, HashEntry>;
 	lastLsn?: string;
+	/**
+	 * Delete everything this vault has in TopK before the next upload: set after a rebuild,
+	 * "Clear local index", or a migration from state version 1 (ids without the vault id).
+	 */
+	needsPurge?: boolean;
 }
 
 export function emptyState(vaultId: string, collection: string): IndexState {
@@ -52,14 +57,20 @@ const STATUSES: readonly HashStatus[] = ['indexed', 'partial', 'failed', 'skippe
  * bad file costs a re-index rather than a crash.
  */
 export function parseState(raw: unknown, newVaultId: () => string, collection: string): IndexState {
-	if (
-		!isRecord(raw) ||
-		raw.version !== STATE_VERSION ||
-		typeof raw.vaultId !== 'string' ||
-		!raw.vaultId
-	) {
+	if (!isRecord(raw) || typeof raw.vaultId !== 'string' || !raw.vaultId) {
 		return emptyState(newVaultId(), collection);
 	}
+	if (raw.version === 1) {
+		// Version 1 ids lacked the vault id: keep the vault id and file hashes, purge and re-upload.
+		const migrated = parseState(
+			{ ...raw, version: STATE_VERSION, hashes: {}, lastLsn: undefined },
+			newVaultId,
+			collection,
+		);
+		migrated.needsPurge = true;
+		return migrated;
+	}
+	if (raw.version !== STATE_VERSION) return emptyState(newVaultId(), collection);
 	const files: Record<string, FileStamp> = {};
 	if (isRecord(raw.files)) {
 		for (const [path, v] of Object.entries(raw.files)) {
@@ -103,9 +114,11 @@ export function parseState(raw: unknown, newVaultId: () => string, collection: s
 		files,
 		hashes,
 	};
+	if (raw.needsPurge === true) state.needsPurge = true;
 	// Hashes uploaded to another collection are not searchable in this one.
 	if (raw.collection !== collection) {
 		state.hashes = {};
+		delete state.needsPurge;
 	} else if (typeof raw.lastLsn === 'string') {
 		state.lastLsn = raw.lastLsn;
 	}
@@ -122,4 +135,17 @@ export function pathsByHash(state: IndexState): Map<string, string[]> {
 	}
 	for (const list of out.values()) list.sort();
 	return out;
+}
+
+/** Hashes with uploads whose content no longer exists at any included path. */
+export function orphanedHashes(state: IndexState, files: Record<string, FileStamp>): string[] {
+	const live = new Set(Object.values(files).map((f) => f.hash));
+	return Object.keys(state.hashes).filter((hash) => !live.has(hash));
+}
+
+/** Forgets every upload, keeping the vault id, and marks the vault for a purge in TopK. */
+export function resetUploads(state: IndexState): void {
+	state.hashes = {};
+	delete state.lastLsn;
+	state.needsPurge = true;
 }

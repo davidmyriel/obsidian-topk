@@ -8,7 +8,7 @@ import { redact } from '../../src/util/logger';
 import { sha256Hex } from '../../src/util/hash';
 
 const page = (n: number, bytes = 10, vaultId = 'v1'): PageDoc => ({
-	id: pageId('h', n),
+	id: pageId('v1', 'h', n),
 	vaultId,
 	contentHash: 'h',
 	page: n,
@@ -18,9 +18,9 @@ const page = (n: number, bytes = 10, vaultId = 'v1'): PageDoc => ({
 });
 
 describe('ids and hashing', () => {
-	it('builds ids from content hash, page and tile', () => {
-		expect(pageId('9f2c41a0', 15)).toBe('9f2c41a0:15:0');
-		expect(pageId('9f2c41a0', 2, 3)).toBe('9f2c41a0:2:3');
+	it('builds ids from vault, content hash, page and tile', () => {
+		expect(pageId('vault', '9f2c41a0', 15)).toBe('vault:9f2c41a0:15:0');
+		expect(pageId('vault', '9f2c41a0', 2, 3)).toBe('vault:9f2c41a0:2:3');
 	});
 
 	it('hashes bytes with SHA-256', async () => {
