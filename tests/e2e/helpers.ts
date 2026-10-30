@@ -17,7 +17,7 @@ export async function useMockTopK(options: { uploadConsent?: boolean } = {}): Pr
 				apiKeySecret: 'topk-e2e',
 				endpoint,
 				collection: `e2e-${Math.random().toString(36).slice(2, 8)}`,
-				longSide: 1024,
+				maxPixels: 1_310_720,
 				uploadConsent: consent,
 			});
 			await plugin.saveSettings();

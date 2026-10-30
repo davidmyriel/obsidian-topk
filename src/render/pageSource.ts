@@ -2,6 +2,8 @@ import {
 	countPdfPages,
 	encodeWithinLimit,
 	renderPdfPages,
+	scaledDimensions,
+	scaleFor,
 	type CanvasFactory,
 	type ImageFormat,
 	type PdfJsLike,
@@ -28,7 +30,8 @@ export interface RenderEnv {
 }
 
 export interface PageImageOptions {
-	longSide: number;
+	/** Upper bound on width × height of each uploaded image (ADR-003). */
+	maxPixels: number;
 	quality: number;
 	maxBytes: number;
 }
@@ -74,7 +77,7 @@ export async function* pageImages(
 	if (kind === 'pdf') {
 		const pdfjs = await env.loadPdfJs();
 		for await (const p of renderPdfPages(pdfjs, data, env.createCanvas, {
-			longSide: options.longSide,
+			maxPixels: options.maxPixels,
 			format: 'jpeg',
 			quality: options.quality,
 			maxBytes: options.maxBytes,
@@ -89,7 +92,7 @@ export async function* pageImages(
 
 /**
  * JPEG or PNG that is already within the size limits is uploaded unchanged (ADR-003). Anything
- * else is scaled down to the long side (never up) and re-encoded as JPEG on white.
+ * else is scaled down to the pixel budget (never up) and re-encoded as JPEG on white.
  */
 export async function prepareImage(
 	env: RenderEnv,
@@ -107,13 +110,15 @@ export async function prepareImage(
 		if (
 			passthrough &&
 			data.length <= options.maxBytes &&
-			Math.max(image.width, image.height) <= options.longSide
+			image.width * image.height <= options.maxPixels
 		) {
 			return { format: passthrough, bytes: data };
 		}
-		const scale = Math.min(1, options.longSide / Math.max(image.width, image.height));
-		const width = Math.max(1, Math.round(image.width * scale));
-		const height = Math.max(1, Math.round(image.height * scale));
+		const scale = Math.min(
+			1,
+			scaleFor(image.width, image.height, { maxPixels: options.maxPixels }),
+		);
+		const { width, height } = scaledDimensions(image.width, image.height, scale);
 		const canvas = env.createCanvas(width, height);
 		try {
 			canvas.drawImage(image.source, width, height);

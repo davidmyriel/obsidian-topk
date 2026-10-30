@@ -6,7 +6,13 @@ export const REGIONS = [
 	{ id: 'gcp-us-east4-aloe', label: 'GCP us-east4 (N. Virginia)' },
 ] as const;
 
-export const LONG_SIDES = [1024, 1536, 2048] as const;
+/** topk-embed-v1 sees at most 1,280 visual tokens of 32×32 px; larger images are downscaled. */
+export const MODEL_MAX_PIXELS = 1_310_720;
+
+export const PIXEL_BUDGETS = [
+	{ value: MODEL_MAX_PIXELS, label: 'Full detail (1.3 MP, recommended)' },
+	{ value: MODEL_MAX_PIXELS / 2, label: 'Smaller uploads (0.66 MP)' },
+] as const;
 
 export interface Settings {
 	/** Name of the secret in Obsidian's secret storage that holds the TopK API key. */
@@ -18,8 +24,8 @@ export interface Settings {
 	includeFolders: string[];
 	excludeGlobs: string[];
 	maxPagesPerFile: number;
-	/** Long side of rendered pages in pixels (ADR-003). */
-	longSide: number;
+	/** Upper bound on width × height of uploaded page images (ADR-003). */
+	maxPixels: number;
 	debugLog: boolean;
 	/** Set once the user has confirmed the first-run upload dialog. */
 	uploadConsent: boolean;
@@ -34,7 +40,7 @@ export function defaultSettings(configDir: string): Settings {
 		includeFolders: [],
 		excludeGlobs: [`${configDir}/**`, '.trash/**'],
 		maxPagesPerFile: 300,
-		longSide: 1024,
+		maxPixels: MODEL_MAX_PIXELS,
 		debugLog: false,
 		uploadConsent: false,
 	};
@@ -91,8 +97,7 @@ export function loadSettings(raw: unknown, configDir: string): Settings {
 	) {
 		s.maxPagesPerFile = Math.min(raw.maxPagesPerFile, 10_000);
 	}
-	if (LONG_SIDES.includes(raw.longSide as (typeof LONG_SIDES)[number]))
-		s.longSide = raw.longSide as number;
+	if (PIXEL_BUDGETS.some((b) => b.value === raw.maxPixels)) s.maxPixels = raw.maxPixels as number;
 	if (typeof raw.debugLog === 'boolean') s.debugLog = raw.debugLog;
 	if (typeof raw.uploadConsent === 'boolean') s.uploadConsent = raw.uploadConsent;
 	return s;
