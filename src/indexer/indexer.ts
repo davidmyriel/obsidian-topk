@@ -309,14 +309,33 @@ export async function runIndex(
 	try {
 		for (const item of plan.work) {
 			if (deps.signal?.aborted) break;
-			const job: FileJob = { item, ids: [], outstanding: 0, rendered: false, failed: false };
+			// A file interrupted earlier resumes after the pages that already landed.
+			const previous = state.hashes[item.hash];
+			const uploaded = new Set(previous?.status === 'partial' ? previous.ids : []);
+			const job: FileJob = {
+				item,
+				ids: [...uploaded],
+				outstanding: 0,
+				rendered: false,
+				failed: false,
+			};
 			jobs.set(item.hash, job);
+			if (uploaded.size > 0) {
+				done += uploaded.size;
+				deps.onProgress?.({
+					phase: 'uploading',
+					done,
+					total: plan.totalPages,
+					path: item.path,
+				});
+			}
 			try {
 				const data = await deps.reader.read(item.path);
 				for await (const img of pageImages(deps.env, item.kind, item.extension, data, {
 					maxPixels: options.maxPixels,
 					quality: options.quality,
 					maxBytes: options.maxImageBytes,
+					skipPage: (page) => uploaded.has(pageId(state.vaultId, item.hash, page, 0)),
 				})) {
 					job.outstanding++;
 					await uploader.add({

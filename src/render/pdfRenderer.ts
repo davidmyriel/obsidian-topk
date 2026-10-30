@@ -59,6 +59,8 @@ export interface RenderOptions extends RenderSize {
 	maxBytes: number;
 	/** Stop after this many pages. */
 	maxPages?: number;
+	/** Pages to leave out without rendering them, e.g. ones already uploaded before a restart. */
+	skipPage?: (page: number) => boolean;
 	/** Extra getDocument options, e.g. standardFontDataUrl in Node. */
 	documentOptions?: Record<string, unknown>;
 }
@@ -148,6 +150,7 @@ export async function* renderPdfPages(
 		const doc = await task.promise;
 		const last = Math.min(doc.numPages, options.maxPages ?? Number.POSITIVE_INFINITY);
 		for (let n = 1; n <= last; n++) {
+			if (options.skipPage?.(n)) continue;
 			const page = await doc.getPage(n);
 			const base = page.getViewport({ scale: 1 });
 			const viewport = page.getViewport({
