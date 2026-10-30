@@ -83,3 +83,7 @@ All notable changes to this project are documented here. The format follows
 - **Show index status**: files and pages indexed, partly uploaded files, and failed and skipped
   files with their reasons, with **Retry failed**. A file that fails is no longer retried on every
   run; it waits until it changes or you retry.
+- Stress tests: a crash at page 50 of a 120-page file, restarted from the last saved state,
+  finishes with every page exactly once and re-uploads at most the pages that were in flight; a
+  5,000-page load test holds retained memory to about 10 MB (heap plus buffers, measured after
+  garbage collection) while 586 MB of page images pass through, in 143 requests.
