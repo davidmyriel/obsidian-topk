@@ -8,9 +8,10 @@ import {
 	DEFAULT_INDEX_OPTIONS,
 } from '../../src/indexer/indexer';
 import { emptyState, pathsByHash, resetUploads, type IndexState } from '../../src/indexer/state';
-import { TopKError } from '../../src/topk/client';
+import { TopKError, type PageDoc } from '../../src/topk/client';
 import { FakeTopK } from '../../src/topk/fake';
 import { tileRects } from '../../src/render/tiles';
+import { prepareImage } from '../../src/render/pageSource';
 import { resolveHits } from '../../src/search/results';
 import { sha256Hex } from '../../src/util/hash';
 import { FIXTURE_PAGE_COUNT, fixtureScorer, HERO, HERO_QUERY } from '../support/fixtures';
@@ -197,17 +198,62 @@ describe('index pipeline on the fixture vault with a fake TopK', () => {
 });
 
 describe('prepareImage', () => {
-	it('uploads a PNG unchanged when it fits the pixel budget and size limit', async () => {
-		const { prepareImage } = await import('../../src/render/pageSource');
-		const { FIXTURE_VAULT } = await import('../support/fixtures');
-		const bytes = new Uint8Array(readFileSync(join(FIXTURE_VAULT, 'market-share.png')));
-		const out = await prepareImage(nodeRenderEnv, 'png', bytes, {
-			maxPixels: 1_310_720,
-			quality: 0.85,
-			maxBytes: 512 * 1024,
-		});
-		expect(out.format).toBe('png');
-		expect(out.bytes).toBe(bytes);
+	const opts = { maxPixels: 1_310_720, quality: 0.85, maxBytes: 512 * 1024 };
+	const centrePixel = async (jpeg: Uint8Array, x: number, y: number): Promise<number[]> => {
+		const { createCanvas, loadImage } = await import('@napi-rs/canvas');
+		const img = await loadImage(Buffer.from(jpeg));
+		const c = createCanvas(img.width, img.height);
+		const ctx = c.getContext('2d');
+		ctx.drawImage(img, 0, 0);
+		return Array.from(ctx.getImageData(x, y, 1, 1).data.slice(0, 3));
+	};
+
+	it('re-encodes every image as JPEG, whatever its extension says (beta 1 F1)', async () => {
+		const { createCanvas } = await import('@napi-rs/canvas');
+		const c = createCanvas(400, 300);
+		const ctx = c.getContext('2d');
+		ctx.fillStyle = '#3366cc';
+		ctx.fillRect(0, 0, 400, 300);
+		const pngBytes = new Uint8Array(c.toBuffer('image/png'));
+		for (const ext of ['jpg', 'png', 'webp']) {
+			const out = await prepareImage(nodeRenderEnv, ext, pngBytes, opts);
+			expect(out.format).toBe('jpeg');
+			expect(Array.from(out.bytes.subarray(0, 3))).toEqual([0xff, 0xd8, 0xff]);
+		}
+	});
+
+	it('flattens a transparent PNG onto white (beta 1 F2)', async () => {
+		const { createCanvas } = await import('@napi-rs/canvas');
+		const c = createCanvas(600, 200);
+		const ctx = c.getContext('2d'); // transparent background
+		ctx.fillStyle = '#000000';
+		ctx.fillRect(250, 80, 100, 40);
+		const out = await prepareImage(
+			nodeRenderEnv,
+			'png',
+			new Uint8Array(c.toBuffer('image/png')),
+			opts,
+		);
+		const [r, g, b] = await centrePixel(out.bytes, 20, 20);
+		expect(Math.min(r ?? 0, g ?? 0, b ?? 0)).toBeGreaterThan(240);
+	});
+
+	it('drops EXIF metadata such as GPS from photos (beta 1 D1)', async () => {
+		const { createCanvas } = await import('@napi-rs/canvas');
+		const c = createCanvas(320, 240);
+		const ctx = c.getContext('2d');
+		ctx.fillStyle = '#888888';
+		ctx.fillRect(0, 0, 320, 240);
+		const jpeg = new Uint8Array(c.toBuffer('image/jpeg', 90));
+		// Splice an APP1 Exif segment carrying a GPS-looking payload right after the SOI marker.
+		const payload = new TextEncoder().encode('Exif\0\0GPSLatitude=37.7749');
+		const app1 = new Uint8Array([0xff, 0xe1, 0, payload.length + 2, ...payload]);
+		const withExif = new Uint8Array([...jpeg.subarray(0, 2), ...app1, ...jpeg.subarray(2)]);
+		expect(new TextDecoder('latin1').decode(withExif)).toContain('GPSLatitude');
+		const out = await prepareImage(nodeRenderEnv, 'jpg', withExif, opts);
+		const text = new TextDecoder('latin1').decode(out.bytes);
+		expect(text).not.toContain('GPSLatitude');
+		expect(text).not.toContain('Exif');
 	});
 });
 
@@ -405,5 +451,38 @@ describe('failed files', () => {
 		expect(reader.reads).toBe(reads);
 		const retried = await runIndex(deps, { ...options, retryFailed: true });
 		expect(retried.failed.map((f) => f.path)).toEqual(['broken.pdf']);
+	});
+});
+
+describe('rejected pages (beta 1 F1)', () => {
+	/** Rejects any batch that contains a page of one chosen file, failing the whole request as TopK does. */
+	class PickyTopK extends FakeTopK {
+		reject = '';
+		override upsertPages(pages: PageDoc[]): Promise<{ lsn: string }> {
+			if (pages.some((p) => p.contentHash === this.reject)) {
+				return Promise.reject(
+					new TopKError('invalid', 'TopK rejected the request: Invalid image'),
+				);
+			}
+			return super.upsertPages(pages);
+		}
+	}
+
+	it('fails only the rejected file, indexes the rest, and does not retry it every run', async () => {
+		const { state, deps } = await setup();
+		const client = new PickyTopK();
+		const picky = { ...deps, client };
+		// Learn the hash of market-share.png, then reject it.
+		await planIndex(picky, options).then((plan) => {
+			client.reject = plan.files['market-share.png']?.hash ?? '';
+		});
+		const summary = await runIndex(picky, options);
+		expect(summary.failed.map((f) => f.path)).toEqual(['market-share.png']);
+		expect(summary.filesIndexed).toBe(3);
+		expect(client.docs.size).toBe(FIXTURE_PAGE_COUNT - 1);
+		expect(state.hashes[client.reject]).toMatchObject({ status: 'failed' });
+
+		const again = await runIndex(picky, options);
+		expect(again).toMatchObject({ pagesUploaded: 0, failed: [] });
 	});
 });
