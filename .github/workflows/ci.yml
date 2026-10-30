@@ -18,7 +18,7 @@ jobs:
                   node-version: 24.x
                   cache: npm
             - run: npm ci
-            - run: npm run check
+            - run: npm run check # includes the bundle check: size, hosts, no eval
             # Shipped code only: dev-only advisories (WebdriverIO toolchain) are tracked in ADR-004.
             - run: npm audit --omit=dev --audit-level=high
 
