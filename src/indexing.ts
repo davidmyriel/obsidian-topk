@@ -10,7 +10,7 @@ import {
 } from './indexer/indexer';
 import { progressText, summaryText } from './indexer/progress';
 import { runUntilDone } from './indexer/resilience';
-import { parseState, resetUploads, type IndexState } from './indexer/state';
+import { parseState, renamePaths, resetUploads, type IndexState } from './indexer/state';
 import { indexStatus } from './indexer/status';
 import { costSentence } from './util/cost';
 import type { PdfJsLike } from './render/pdfRenderer';
@@ -75,6 +75,12 @@ export class StateStore {
 	async save(state: IndexState): Promise<void> {
 		this.cached = state;
 		await this.plugin.app.vault.adapter.write(this.path, JSON.stringify(state));
+	}
+
+	/** Moves known files from oldPath (a file or a folder) to newPath. Content hashes don't change. */
+	async rename(oldPath: string, newPath: string): Promise<void> {
+		const state = await this.load();
+		if (renamePaths(state, oldPath, newPath)) await this.save(state);
 	}
 }
 

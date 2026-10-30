@@ -149,3 +149,22 @@ export function resetUploads(state: IndexState): void {
 	delete state.lastLsn;
 	state.needsPurge = true;
 }
+
+/** Re-keys files at oldPath, or under it when it is a folder, to newPath. Returns true if any moved. */
+export function renamePaths(state: IndexState, oldPath: string, newPath: string): boolean {
+	let moved = false;
+	for (const path of Object.keys(state.files)) {
+		const target =
+			path === oldPath
+				? newPath
+				: path.startsWith(`${oldPath}/`)
+					? newPath + path.slice(oldPath.length)
+					: null;
+		const stamp = state.files[path];
+		if (target === null || !stamp) continue;
+		delete state.files[path];
+		state.files[target] = stamp;
+		moved = true;
+	}
+	return moved;
+}
