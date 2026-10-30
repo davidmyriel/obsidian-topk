@@ -50,3 +50,5 @@ All notable changes to this project are documented here. The format follows
   checks the hero query ranks first, then deletes the collection. `nightly.yml` runs it with the
   `TOPK_API_KEY` secret, plus e2e on macOS and Windows.
 - README with usage, network use and install instructions; `docs/ARCHITECTURE.md`.
+- Windows e2e runs the minimum Obsidian (1.11.4) on the latest installer; the oldest installer
+  crashes when drawing any PDF on GitHub's Windows runners, Obsidian's own viewer included.

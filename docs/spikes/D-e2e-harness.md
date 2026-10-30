@@ -33,8 +33,9 @@ regular e2e suite will use a local mock TopK server (PLAN.md testing strategy).
 ## Linux CI
 
 `.github/workflows/ci.yml` has an `e2e-linux` job: `xvfb-run --auto-servernum npm run test:e2e` on
-`ubuntu-latest`, with `.obsidian-cache` cached. **It has not run yet**: the repository has no remote,
-and pushing needs Dave's approval. This is the one Stage 0 exit criterion that is still open.
+`ubuntu-latest`, with `.obsidian-cache` cached. First run on GitHub (2026-10-29, commit `b734353`):
+passed in 85 s, covering index, search, opening page 3 and saving the results note. The `check` job
+passed in 46 s.
 
 ## Audit
 
@@ -43,3 +44,20 @@ and pushing needs Dave's approval. This is the one Stage 0 exit criterion that i
 mocha). None reaches `main.js`; `npm audit --omit=dev --audit-level=high` reports 0. CI audits
 shipped dependencies only. PLAN.md's CI row says `npm audit --audit-level=high`, so this is a
 deviation for Dave to approve (ADR-004).
+
+## Windows and the oldest installer (2026-10-30)
+
+The first nightly run failed on Windows with app 1.11.4 on the oldest installer: the renderer
+disconnected about 30 s into indexing. Splitting indexing into separate Windows jobs showed:
+
+| Step                                                                   | Oldest installer (Chromium 120) | `--disable-gpu` | Latest installer (Chromium 142) |
+| ---------------------------------------------------------------------- | ------------------------------- | --------------- | ------------------------------- |
+| Hash, image decode and encode, HTTP/2 to the mock, image-only indexing | pass                            | —               | —                               |
+| `loadPdfJs()`, `getDocument`, canvas JPEG encode                       | pass                            | —               | —                               |
+| pdf.js drawing a page onto a canvas                                    | crash                           | crash           | pass                            |
+| Obsidian's own PDF viewer opening `talk.pdf`                           | crash                           | crash           | pass                            |
+| Indexing `Docs/`                                                       | crash                           | crash           | pass                            |
+
+So the crash is in the old Electron's PDF drawing on that runner, not in the plugin. Windows CI now
+tests app 1.11.4 on the latest installer. Whether real Windows machines with very old installers
+crash too is unknown; Obsidian's own viewer would be affected the same way.

@@ -8,9 +8,14 @@
 
 - **WebdriverIO 9 + `wdio-obsidian-service` 3.3.0**, Mocha, spec reporter. Pinned exact versions.
 - Each run boots real Obsidian with `tests/fixtures/vault` and the plugin built from the repo root.
-- Version matrix on every PR: `earliest` (= `minAppVersion` 1.11.4) and `latest`. Weekly macOS and
+- Version matrix on every PR: `earliest` (= `minAppVersion` 1.11.4) and `latest`. On Windows the
+  `earliest` app runs on the latest installer: the oldest installer (Chromium 120) crashes the
+  renderer whenever a PDF is drawn on GitHub's Windows runners, in Obsidian's own PDF viewer as
+  well as in the plugin, with or without `--disable-gpu` (diagnosed 2026-10-30 on the
+  `debug/windows-crash` branch). Weekly macOS and
   Windows runs come with `nightly.yml`.
-- Linux CI runs under `xvfb-run` and caches `.obsidian-cache`.
+- Linux CI runs under `xvfb-run` and caches `.obsidian-cache`; confirmed on GitHub Actions on
+  2026-10-29 (85 s).
 - Code that must run inside Obsidian but isn't part of the plugin (spike probes, later test helpers)
   is bundled in `onPrepare` and loaded with `require()` through `browser.executeObsidian`.
 - Specs that touch the network are opt-in (`E2E_SPIKES=1`); the default suite will talk to a local

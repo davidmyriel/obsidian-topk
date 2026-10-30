@@ -7,9 +7,11 @@ const root = import.meta.dirname;
 const cacheDir = path.resolve(root, '.obsidian-cache');
 export const probeBundle = path.join(cacheDir, 'e2e-probe.cjs');
 
-// minAppVersion is the floor we promise; latest catches regressions (ADR-004).
+// minAppVersion is the floor we promise; latest catches regressions (ADR-004). On Windows the
+// oldest installer (Electron with Chromium 120) crashes when any PDF is drawn on GitHub's runners,
+// Obsidian's own PDF viewer included, so the minimum app runs on the latest installer there.
 const versions: [app: string, installer: string][] = [
-	['earliest', 'earliest'],
+	['earliest', process.platform === 'win32' ? 'latest' : 'earliest'],
 	['latest', 'latest'],
 ];
 const only = process.env.OBSIDIAN_VERSIONS; // e.g. "latest" to run one version locally
