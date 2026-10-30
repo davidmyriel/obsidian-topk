@@ -197,7 +197,7 @@ Build these only after launch numbers come in. Each one gets its own ADR, tests 
 
 | Feature | What the user sees | Depends on |
 | --- | --- | --- |
-| Find similar pages | Right-click a page or image, choose "Find visually similar", get the 10 closest pages | Querying with a page's own vectors |
+| Find similar pages | Right-click a page or image, choose "Find visually similar", get the 10 closest pages | Querying with a page's own vectors. **On hold (Dave, 2026-10-30).** |
 | Hybrid ranking toggle | Text-layer keyword matches fused with vector results; best for exact codes like "INV-2291" | TopK keyword index on the text field |
 | Excalidraw and Canvas | Drawings from the Excalidraw plugin and Canvas files are rendered to PNG and searchable | Excalidraw export API |
 | Match heatmap | The result thumbnail highlights the patches that matched the query | TopK returning per-token MaxSim scores (open question) |
@@ -276,8 +276,8 @@ The two biggest risks are settled in Stage 0: whether the SDK runs inside Obsidi
 
 ### Open questions for Dave and TopK
 
-- [ ] How is image embedding billed: tokens per image, or a flat price per image?
-- [ ] Can demo users get extra free credits or a promo code tied to the post?
+- [x] How is image embedding billed: tokens per image, or a flat price per image? **Flat: $0.075 per 1,000 images (TopK blog). See docs/spikes/E-topk-embed-v1.md.**
+- [x] Can demo users get extra free credits or a promo code tied to the post? **New accounts get $10 of free credits (topk.io/pricing), about 65,000–110,000 indexed pages.**
 - [ ] Does search return per-token MaxSim scores, needed for the Stage 4 heatmap?
 - [ ] One collection per user, or one shared collection with a filter per vault?
 - [ ] Which of Dave's slide decks and notes can go into the public corpus?

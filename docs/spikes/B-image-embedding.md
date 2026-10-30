@@ -61,6 +61,9 @@ pages are 15–29 KB as JPEG at 1024 px (Spike C), far below the limit.
 
 ## Tokens and price per page: not measurable from the API
 
+> **Update 2026-10-30:** answered from the TopK blog: image embedding is $0.075 per 1,000 images,
+> flat per image. See `docs/spikes/E-topk-embed-v1.md`.
+
 - topk.io/pricing lists **"Text embedding — $0.05 per 1M tokens"** ("Built-in multi-vector
   embeddings") and nothing for image embedding. Other relevant lines: write requests $0.01 per 1K,
   write data $0.50 per GiB, storage $0.10 per GiB-month, query requests $0.50 per 1M, egress $0.20
