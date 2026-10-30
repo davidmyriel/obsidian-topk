@@ -74,3 +74,7 @@ All notable changes to this project are documented here. The format follows
   changed, renamed or deleted, and when Obsidian starts, catching changes made while it was closed.
   Background runs stay quiet unless something fails. Setting **Index automatically** (on by
   default). An interrupted file now resumes after its last uploaded page instead of starting over.
+- Tall images: images more than 2.5 times taller than wide (long screenshots, infographics) are
+  split into page-shaped tiles (width × 1.414) with 10% overlap, each scaled to the full pixel
+  budget. Tiles are stored as `image_tile` and appear as one search result that opens the image.
+  The max-pages-per-file limit also caps tiles.

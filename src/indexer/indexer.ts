@@ -276,7 +276,8 @@ export async function runIndex(
 		state.hashes[job.item.hash] = {
 			kind: job.item.kind,
 			extension: job.item.extension,
-			pageCount: job.item.pageCount,
+			// A tall image turns into several tiles, known only once it is decoded.
+			pageCount: Math.max(job.item.pageCount, job.ids.length),
 			ids: [...job.ids],
 			status,
 			...(reason ? { reason } : {}),
@@ -336,6 +337,7 @@ export async function runIndex(
 					quality: options.quality,
 					maxBytes: options.maxImageBytes,
 					skipPage: (page) => uploaded.has(pageId(state.vaultId, item.hash, page, 0)),
+					maxTiles: options.maxPagesPerFile,
 				})) {
 					job.outstanding++;
 					await uploader.add({
@@ -344,7 +346,7 @@ export async function runIndex(
 						contentHash: item.hash,
 						page: img.page,
 						tile: img.tile,
-						kind: item.kind === 'pdf' ? 'pdf_page' : 'image',
+						kind: item.kind === 'pdf' ? 'pdf_page' : img.tiled ? 'image_tile' : 'image',
 						image: { format: img.format, bytes: img.bytes },
 					});
 					deps.onProgress?.({

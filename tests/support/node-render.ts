@@ -29,7 +29,20 @@ export const nodeCanvasFactory: CanvasFactory = (width, height) => {
 			format === 'png'
 				? new Uint8Array(await canvas.encode('png'))
 				: new Uint8Array(await canvas.encode('jpeg', Math.round(quality * 100))),
-		drawImage: (source, w, h) => context.drawImage(source as Image, 0, 0, w, h),
+		drawImage: (source, w, h, crop) =>
+			crop
+				? context.drawImage(
+						source as Image,
+						crop.x,
+						crop.y,
+						crop.width,
+						crop.height,
+						0,
+						0,
+						w,
+						h,
+					)
+				: context.drawImage(source as Image, 0, 0, w, h),
 		release: () => {
 			canvas.width = 0;
 			canvas.height = 0;
