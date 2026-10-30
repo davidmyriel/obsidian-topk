@@ -5,6 +5,24 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed (from the outside tester's beta 1 report)
+
+- One misnamed image (a PNG saved as `.jpg`) no longer stops the whole vault from indexing. Images
+  are decoded by their bytes, and if TopK rejects a page, only that file is marked failed.
+- **Remove my data from TopK** now sticks: it stops any run, withdraws upload consent and clears the
+  last results, so neither a restart nor a file change re-uploads the vault.
+- **Rebuild index**, **Remove my data** and **Clear local index** confirmed during indexing no longer
+  leave search empty or undo themselves: they stop the run and wait before changing the index.
+- Results follow renames immediately, drop deleted files, and open the file directly, so clicking a
+  result can no longer create an empty note.
+- File names with `#` or `|` open correctly; saved notes use links that resolve (an
+  `obsidian://open` link for names with `#`, which Obsidian links cannot contain).
+- Transparent PNGs are flattened onto white before upload, so they match searches.
+- A copied vault gets its own vault id, so the copy and the original no longer delete each other's
+  pages.
+- Privacy: every image is redrawn before upload, so photo metadata such as GPS location is no longer
+  sent. PRIVACY.md says so.
+
 ## [0.1.0-beta.1] - 2026-10-30
 
 First beta, for testers installing through BRAT (see docs/BETA.md).

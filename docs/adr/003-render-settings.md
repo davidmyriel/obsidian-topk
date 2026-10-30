@@ -22,8 +22,8 @@ Render time is not a factor (under 40 ms per page everywhere); encoded size is.
   loading task is destroyed at the end.
 - pdf.js and the canvas are injected, so `src/render` has no Obsidian dependency. In Obsidian the
   canvas comes from `src/util/domCanvas.ts`; in tests from `@napi-rs/canvas` with `pdfjs-dist`.
-- Images that are already JPEG or PNG and under the limit at their size go up unchanged; others are
-  scaled to the same long side and re-encoded (Stage 1 `imagePrep`).
+- Images are always decoded and re-encoded as JPEG on white, scaled down to the budget (amended in
+  beta 2; see below).
 
 ## Consequences
 
@@ -53,3 +53,14 @@ with 10% overlap, the last tile aligned to the bottom. Each tile is scaled to th
 its own and uploaded as kind `image_tile`, page 1, tile 0…n−1 (`src/render/tiles.ts`). Search
 results collapse tiles into one result for the image. More tiles than "max pages per file" fails
 the file with a reason instead of uploading hundreds of documents.
+
+## Amendment, 2026-10-30 (beta 2): always re-encode images
+
+The original rule uploaded JPEG and PNG files unchanged when they fit the limits. The outside
+tester's report (`docs/qa/beta-1-findings.md` on the findings branch) showed three problems with
+that: a PNG saved with a `.jpg` name was sent as JPEG, and TopK rejected the whole batch, so the
+vault never finished indexing (F1); transparent PNGs were embedded on black and barely matched (F2);
+and photos kept EXIF metadata such as GPS location (D1). Every image is now decoded by its bytes,
+not its extension, drawn on white and re-encoded as JPEG. The cost is a re-encode of small images,
+negligible next to the upload. Separately, the uploader retries a batch that TopK rejects as
+invalid one page at a time and fails only the rejected file.
