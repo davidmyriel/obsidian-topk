@@ -96,7 +96,8 @@ export class VisualSearchModal extends Modal {
 				...(state.lastLsn ? { requiredLsn: state.lastLsn } : {}),
 			});
 			if (id !== this.searchId) return;
-			const results = resolveHits(hits, state, SHOW_K);
+			const exists = (path: string): boolean => this.app.vault.getFileByPath(path) !== null;
+			const results = resolveHits(hits, state, SHOW_K, exists);
 			this.plugin.lastSearch = { query, results };
 			this.plugin.log.debug('search', {
 				ms: Math.round(performance.now() - started),

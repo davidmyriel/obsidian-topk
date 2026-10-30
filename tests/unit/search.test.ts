@@ -5,7 +5,7 @@ import {
 	noteBaseName,
 	pageLinkText,
 	resultsNote,
-	wikiLink,
+	noteLink,
 } from '../../src/search/links';
 import { resolveHits } from '../../src/search/results';
 import type { SearchHit } from '../../src/topk/client';
@@ -14,7 +14,7 @@ describe('page links', () => {
 	it('links PDFs to their page and images to the file', () => {
 		expect(pageLinkText('Talks/talk.pdf', 15, 'pdf_page')).toBe('Talks/talk.pdf#page=15');
 		expect(pageLinkText('img/a b.png', 1, 'image')).toBe('img/a b.png');
-		expect(wikiLink({ path: 'talk.pdf', page: 3, kind: 'pdf_page' })).toBe(
+		expect(noteLink({ path: 'talk.pdf', page: 3, kind: 'pdf_page' }, 'V')).toBe(
 			'[[talk.pdf#page=3]]',
 		);
 		expect(fileName('a/b/c.pdf')).toBe('c.pdf');
@@ -28,6 +28,7 @@ describe('page links', () => {
 				{ path: 'chart.png', page: 1, kind: 'image', score: 4, contentHash: 'i' },
 			],
 			new Date('2026-10-29T12:00:00Z'),
+			'V',
 		);
 		expect(note).toBe(
 			[
@@ -83,5 +84,77 @@ describe('resolveHits', () => {
 			['a.pdf', 1],
 		]);
 		expect(resolveHits([hit('h1', 1, 1), hit('h1', 2, 2)], state, 1)).toHaveLength(1);
+	});
+});
+
+describe('noteLink (beta 1 F7)', () => {
+	it('keeps wikilinks for ordinary names, including ^ which wikilinks handle', () => {
+		expect(noteLink({ path: 'Docs/v2^final.pdf', page: 2, kind: 'pdf_page' }, 'V')).toBe(
+			'[[Docs/v2^final.pdf#page=2]]',
+		);
+		expect(noteLink({ path: 'img/a b.png', page: 1, kind: 'image' }, 'V')).toBe(
+			'[[img/a b.png]]',
+		);
+	});
+
+	it('uses an encoded Markdown link for | and brackets', () => {
+		expect(noteLink({ path: 'Docs/a|b (v2).pdf', page: 1, kind: 'pdf_page' }, 'V')).toBe(
+			'[a|b (v2).pdf, page 1](Docs/a%7Cb%20%28v2%29.pdf#page=1)',
+		);
+		expect(noteLink({ path: 'Docs/[draft] plan.png', page: 1, kind: 'image' }, 'V')).toBe(
+			'[\\[draft\\] plan.png](Docs/%5Bdraft%5D%20plan.png)',
+		);
+	});
+
+	it('uses an obsidian://open link for # which no Obsidian link can contain', () => {
+		expect(
+			noteLink({ path: 'Talks/Q3 #1 review.pdf', page: 3, kind: 'pdf_page' }, 'My Vault'),
+		).toBe(
+			'[Q3 #1 review.pdf, page 3](obsidian://open?vault=My%20Vault&file=Talks%2FQ3%20%231%20review.pdf)',
+		);
+	});
+});
+
+describe('resolveHits with the live vault (beta 1 F8)', () => {
+	it('skips paths that no longer exist and drops hits with none left', () => {
+		const state = emptyState('v', 'c');
+		state.files = {
+			'old.pdf': { hash: 'h1', size: 1, mtime: 1 },
+			'moved/new.pdf': { hash: 'h1', size: 1, mtime: 1 },
+			'gone.pdf': { hash: 'h2', size: 1, mtime: 1 },
+		};
+		const hit = (hash: string, score: number): SearchHit => ({
+			id: hash,
+			contentHash: hash,
+			page: 1,
+			tile: 0,
+			kind: 'pdf_page',
+			score,
+		});
+		const exists = (p: string): boolean => p === 'moved/new.pdf';
+		expect(
+			resolveHits([hit('h2', 9), hit('h1', 5)], state, 10, exists).map((r) => r.path),
+		).toEqual(['moved/new.pdf']);
+	});
+});
+
+describe('renamePaths', () => {
+	it('moves a file, and every file under a renamed folder', async () => {
+		const { renamePaths } = await import('../../src/indexer/state');
+		const state = emptyState('v', 'c');
+		state.files = {
+			'Talks/talk.pdf': { hash: 'h1', size: 1, mtime: 1 },
+			'Talks/sub/b.pdf': { hash: 'h2', size: 1, mtime: 1 },
+			'Talkshow.pdf': { hash: 'h3', size: 1, mtime: 1 },
+		};
+		expect(renamePaths(state, 'Talks', 'Archive/Talks')).toBe(true);
+		expect(Object.keys(state.files).sort()).toEqual([
+			'Archive/Talks/sub/b.pdf',
+			'Archive/Talks/talk.pdf',
+			'Talkshow.pdf',
+		]);
+		expect(renamePaths(state, 'Talkshow.pdf', 'show.pdf')).toBe(true);
+		expect(state.files['show.pdf']?.hash).toBe('h3');
+		expect(renamePaths(state, 'nope', 'x')).toBe(false);
 	});
 });
