@@ -8,8 +8,9 @@ The plugin uses [TopK](https://topk.io)'s hosted multimodal embeddings (topk-emb
 each page as an image, so charts, diagrams, tables, screenshots and scans are searchable without
 OCR.
 
-> Desktop only. Requires a TopK account and API key. TopK is a paid service; new accounts get free
-> credits.
+> Desktop only. Requires a TopK account and API key. TopK is a paid service; new accounts get $10 of
+> free credits. Indexing costs about $0.13 per 1,000 pages, and the plugin shows an estimate before
+> uploading.
 
 ## Use
 
@@ -28,7 +29,7 @@ automatically** in settings to do it by hand). Running **Index vault** only uplo
 content changed, and removes pages of files you deleted or excluded. Renaming or moving files costs nothing, because pages are identified by a
 hash of the file content.
 
-Other commands: **Rebuild index** (re-uploads everything with the current settings), **Remove my
+Other commands: **Show index status** (what's indexed, skipped or failed, with Retry), **Rebuild index** (re-uploads everything with the current settings), **Remove my
 data from TopK**, and **Clear local index**.
 
 Indexed file types: PDF, PNG, JPEG and WebP.

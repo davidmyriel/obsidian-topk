@@ -11,6 +11,8 @@ import {
 import { progressText, summaryText } from './indexer/progress';
 import { runUntilDone } from './indexer/resilience';
 import { parseState, resetUploads, type IndexState } from './indexer/state';
+import { indexStatus } from './indexer/status';
+import { costSentence } from './util/cost';
 import type { PdfJsLike } from './render/pdfRenderer';
 import type { RenderEnv } from './render/pageSource';
 import { TopKError } from './topk/client';
@@ -123,7 +125,7 @@ export class IndexController {
 	 * silent: it skips when auto-indexing is off, consent or the key is missing, shows the status
 	 * bar only once uploads start, and notifies only about failures. It waits for a run in progress.
 	 */
-	async run(options: { background?: boolean } = {}): Promise<void> {
+	async run(options: { background?: boolean; retryFailed?: boolean } = {}): Promise<void> {
 		const background = options.background ?? false;
 		if (this.current) {
 			if (!background) {
@@ -136,13 +138,15 @@ export class IndexController {
 			const s = this.plugin.settings;
 			if (!s.autoIndex || !s.uploadConsent || !this.plugin.apiKey()) return;
 		}
-		this.current = this.runOnce(background).finally(() => (this.current = null));
+		this.current = this.runOnce(background, options.retryFailed ?? false).finally(
+			() => (this.current = null),
+		);
 		await this.current;
 	}
 
 	private current: Promise<void> | null = null;
 
-	private async runOnce(background: boolean): Promise<void> {
+	private async runOnce(background: boolean, retryFailed: boolean): Promise<void> {
 		const client = this.plugin.createClient();
 		if (!client) return;
 		const controller = new AbortController();
@@ -167,7 +171,7 @@ export class IndexController {
 					this.textEl.setText(progressText(p));
 				},
 			};
-			const options = indexOptions(this.plugin);
+			const options = { ...indexOptions(this.plugin), retryFailed };
 			const plan = await planIndex(deps, options);
 			this.plugin.log.debug('index plan', {
 				work: plan.work.length,
@@ -233,14 +237,15 @@ export class IndexMaintenance {
 
 	async rebuild(): Promise<void> {
 		if (this.busy()) return;
+		const state = await this.plugin.stateStore.load();
+		const pages = indexStatus(state).pages;
 		const ok = await confirm(
 			this.plugin.app,
 			'Rebuild index?',
-			'This deletes this vault\u2019s pages from TopK and uploads every page again with the current settings.',
+			`This deletes this vault\u2019s pages from TopK and uploads every page again with the current settings. ${costSentence(pages)}`,
 			'Rebuild',
 		);
 		if (!ok) return;
-		const state = await this.plugin.stateStore.load();
 		resetUploads(state);
 		await this.plugin.stateStore.save(state);
 		await this.indexer.run();
@@ -372,7 +377,7 @@ class FirstRunModal extends Modal {
 			text: 'Each page is sent as an image and stored in TopK so it can be searched.',
 		});
 		list.createEl('li', { text: 'File names and folder paths stay on this device.' });
-		list.createEl('li', { text: 'Usage is billed to your TopK account.' });
+		list.createEl('li', { text: costSentence(plan.totalPages) });
 		new Setting(contentEl)
 			.addButton((b) => b.setButtonText('Cancel').onClick(() => this.finish(false)))
 			.addButton((b) =>
@@ -408,4 +413,66 @@ function waitForConnection(signal?: AbortSignal): Promise<void> {
 		window.addEventListener('online', done);
 		signal?.addEventListener('abort', done);
 	});
+}
+
+/** "Show index status": what is indexed, skipped and failed, with Retry for failures. */
+export class IndexStatusModal extends Modal {
+	constructor(
+		app: App,
+		private readonly plugin: TopKVisualSearchPlugin,
+	) {
+		super(app);
+	}
+
+	override async onOpen(): Promise<void> {
+		this.setTitle('Visual search index');
+		const { contentEl } = this;
+		const status = indexStatus(await this.plugin.stateStore.load());
+		const n = (v: number): string => v.toLocaleString('en-US');
+		const summary = contentEl.createEl('p');
+		summary.setText(
+			`${n(status.files)} files and ${n(status.pages)} pages indexed in "${this.plugin.settings.collection}".`,
+		);
+		if (status.lastIndexed) {
+			contentEl.createEl('p', {
+				cls: 'setting-item-description',
+				text: `Last updated ${new Date(status.lastIndexed).toLocaleString()}.`,
+			});
+		}
+		if (status.partial > 0) {
+			contentEl.createEl('p', {
+				text: `${n(status.partial)} files are partly uploaded and finish on the next run.`,
+			});
+		}
+		this.list('Failed', status.failed);
+		this.list('Skipped', status.skipped);
+		const buttons = new Setting(contentEl);
+		if (status.failed.length > 0) {
+			buttons.addButton((b) =>
+				b
+					.setButtonText('Retry failed')
+					.setCta()
+					.onClick(() => {
+						this.close();
+						void this.plugin.indexer.run({ retryFailed: true });
+					}),
+			);
+		}
+		buttons.addButton((b) => b.setButtonText('Close').onClick(() => this.close()));
+	}
+
+	override onClose(): void {
+		this.contentEl.empty();
+	}
+
+	private list(title: string, items: { path: string; reason: string }[]): void {
+		if (items.length === 0) return;
+		new Setting(this.contentEl).setName(`${title} (${items.length})`).setHeading();
+		const ul = this.contentEl.createEl('ul', { cls: 'topk-status-list' });
+		for (const item of items) {
+			const li = ul.createEl('li');
+			li.createEl('strong', { text: item.path });
+			li.appendText(` \u2014 ${item.reason}`);
+		}
+	}
 }

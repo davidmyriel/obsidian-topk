@@ -86,3 +86,9 @@
 	justify-content: flex-end;
 	margin-top: var(--size-4-3);
 }
+
+.topk-status-list {
+	max-height: 30vh;
+	overflow-y: auto;
+	font-size: var(--font-ui-small);
+}
