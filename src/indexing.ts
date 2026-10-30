@@ -1,4 +1,12 @@
-import { loadPdfJs, Modal, normalizePath, Notice, Setting, type App } from 'obsidian';
+import {
+	FileSystemAdapter,
+	loadPdfJs,
+	Modal,
+	normalizePath,
+	Notice,
+	Setting,
+	type App,
+} from 'obsidian';
 import type TopKVisualSearchPlugin from './main';
 import {
 	DEFAULT_INDEX_OPTIONS,
@@ -10,7 +18,13 @@ import {
 } from './indexer/indexer';
 import { progressText, summaryText } from './indexer/progress';
 import { runUntilDone } from './indexer/resilience';
-import { parseState, resetUploads, type IndexState } from './indexer/state';
+import {
+	bindToVault,
+	parseState,
+	renamePaths,
+	resetUploads,
+	type IndexState,
+} from './indexer/state';
 import { indexStatus } from './indexer/status';
 import { costSentence } from './util/cost';
 import type { PdfJsLike } from './render/pdfRenderer';
@@ -68,13 +82,35 @@ export class StateStore {
 				raw = null; // unreadable state means a fresh index, not a crash
 			}
 		}
-		this.cached = parseState(raw ?? this.cached, () => crypto.randomUUID(), collection);
-		return this.cached;
+		const state = parseState(raw ?? this.cached, () => crypto.randomUUID(), collection);
+		if (bindToVault(state, this.vaultKey(), () => crypto.randomUUID())) {
+			this.plugin.log.debug(
+				'index state came from another vault folder; starting a new vault id',
+			);
+		}
+		this.cached = state;
+		return state;
+	}
+
+	/** Obsidian's id for this vault folder (internal, but stable per vault); the folder path as a fallback. */
+	private vaultKey(): string {
+		const app = this.plugin.app as unknown as { appId?: string };
+		if (app.appId) return app.appId;
+		const adapter = this.plugin.app.vault.adapter;
+		return adapter instanceof FileSystemAdapter
+			? adapter.getBasePath()
+			: this.plugin.app.vault.getName();
 	}
 
 	async save(state: IndexState): Promise<void> {
 		this.cached = state;
 		await this.plugin.app.vault.adapter.write(this.path, JSON.stringify(state));
+	}
+
+	/** Moves known files from oldPath (a file or a folder) to newPath. Content hashes don't change. */
+	async rename(oldPath: string, newPath: string): Promise<void> {
+		const state = await this.load();
+		if (renamePaths(state, oldPath, newPath)) await this.save(state);
 	}
 }
 
@@ -120,6 +156,23 @@ export class IndexController {
 		this.controller?.abort();
 	}
 
+	private paused = 0;
+
+	/**
+	 * Stops any run, waits until it has wound down (it shares the index state), and keeps new runs
+	 * from starting while `task` changes that state. Used by the maintenance commands.
+	 */
+	async whilePaused<T>(task: () => Promise<T>): Promise<T> {
+		this.paused++;
+		try {
+			this.cancel();
+			await this.current?.catch(() => undefined);
+			return await task();
+		} finally {
+			this.paused--;
+		}
+	}
+
 	/**
 	 * Runs Index vault. A background run (triggered by vault changes or startup, ADR-005) is
 	 * silent: it skips when auto-indexing is off, consent or the key is missing, shows the status
@@ -127,12 +180,17 @@ export class IndexController {
 	 */
 	async run(options: { background?: boolean; retryFailed?: boolean } = {}): Promise<void> {
 		const background = options.background ?? false;
+		if (this.paused > 0) {
+			if (!background) new Notice('Wait a moment: the index is being changed.');
+			return;
+		}
 		if (this.current) {
 			if (!background) {
 				new Notice('Indexing is already running.');
 				return;
 			}
 			await this.current;
+			if (this.paused > 0) return;
 		}
 		if (background) {
 			const s = this.plugin.settings;
@@ -235,10 +293,11 @@ export class IndexMaintenance {
 		private readonly indexer: IndexController,
 	) {}
 
+	// Each command asks first, then stops any run and keeps runs paused while it changes the
+	// index, because a run in progress shares and writes the same state (beta 1 F9, F10).
+
 	async rebuild(): Promise<void> {
-		if (this.busy()) return;
-		const state = await this.plugin.stateStore.load();
-		const pages = indexStatus(state).pages;
+		const pages = indexStatus(await this.plugin.stateStore.load()).pages;
 		const ok = await confirm(
 			this.plugin.app,
 			'Rebuild index?',
@@ -246,42 +305,54 @@ export class IndexMaintenance {
 			'Rebuild',
 		);
 		if (!ok) return;
-		resetUploads(state);
-		await this.plugin.stateStore.save(state);
+		await this.indexer.whilePaused(async () => {
+			const state = await this.plugin.stateStore.load();
+			resetUploads(state);
+			await this.plugin.stateStore.save(state);
+		});
+		this.plugin.lastSearch = null;
 		await this.indexer.run();
 	}
 
 	async removeData(): Promise<void> {
-		if (this.busy()) return;
 		const ok = await confirm(
 			this.plugin.app,
 			'Remove your data from TopK?',
-			'This deletes every page image and embedding this vault uploaded to TopK. Other vaults in the same collection are not affected. Your files are not touched.',
+			'This deletes every page image and embedding this vault uploaded to TopK and stops automatic uploads until you run Index vault again. Other vaults in the same collection are not affected. Your files are not touched.',
 			'Remove',
 		);
 		if (!ok) return;
-		const client = this.plugin.createClient();
-		if (!client) return;
-		try {
-			const state = await this.plugin.stateStore.load();
-			await client.deleteVault(state.vaultId);
-			state.hashes = {};
-			delete state.lastLsn;
-			delete state.needsPurge;
-			await this.plugin.stateStore.save(state);
-			new Notice('Removed this vault\u2019s pages from TopK.');
-		} catch (err) {
-			new Notice(
-				err instanceof TopKError ? err.message : `Could not remove data: ${String(err)}`,
-				10_000,
-			);
-		} finally {
-			client.close();
-		}
+		await this.indexer.whilePaused(async () => {
+			const client = this.plugin.createClient();
+			if (!client) return;
+			try {
+				const state = await this.plugin.stateStore.load();
+				await client.deleteVault(state.vaultId);
+				state.hashes = {};
+				delete state.lastLsn;
+				delete state.needsPurge;
+				await this.plugin.stateStore.save(state);
+				// Without consent, background runs do nothing; Index vault asks again first.
+				this.plugin.settings.uploadConsent = false;
+				await this.plugin.saveSettings();
+				this.plugin.lastSearch = null;
+				new Notice(
+					'Removed this vault\u2019s pages from TopK. Nothing is uploaded until you index the vault again.',
+				);
+			} catch (err) {
+				new Notice(
+					err instanceof TopKError
+						? err.message
+						: `Could not remove data: ${String(err)}`,
+					10_000,
+				);
+			} finally {
+				client.close();
+			}
+		});
 	}
 
 	async clearLocal(): Promise<void> {
-		if (this.busy()) return;
 		const ok = await confirm(
 			this.plugin.app,
 			'Clear local index?',
@@ -289,18 +360,14 @@ export class IndexMaintenance {
 			'Clear',
 		);
 		if (!ok) return;
-		const state = await this.plugin.stateStore.load();
-		state.files = {};
-		resetUploads(state);
-		await this.plugin.stateStore.save(state);
+		await this.indexer.whilePaused(async () => {
+			const state = await this.plugin.stateStore.load();
+			state.files = {};
+			resetUploads(state);
+			await this.plugin.stateStore.save(state);
+		});
 		this.plugin.lastSearch = null;
 		new Notice('Local index cleared.');
-	}
-
-	private busy(): boolean {
-		if (!this.indexer.running) return false;
-		new Notice('Wait for indexing to finish, or cancel it first.');
-		return true;
 	}
 }
 

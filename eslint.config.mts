@@ -20,6 +20,7 @@ export default defineConfig(
 		'vendor/**',
 		'tests/fixtures/**',
 		'.obsidian-cache/**',
+		'.claude/**', // agent worktrees
 	]),
 	{
 		languageOptions: {

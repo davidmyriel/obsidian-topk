@@ -4,15 +4,21 @@ import type { SearchHit } from '../topk/client';
 import type { ResolvedResult } from './links';
 
 /**
- * Maps TopK hits (content hashes) to current vault paths, best first. Hits whose content no
- * longer exists in the vault are dropped, so deleted files never show up.
+ * Maps TopK hits (content hashes) to current vault paths, best first. Paths are checked against
+ * the vault right now (`exists`), because the index only learns about deletes at the next run;
+ * hits with no existing path are dropped, so a result never points at a missing file (beta 1 F8).
  */
-export function resolveHits(hits: SearchHit[], state: IndexState, limit: number): ResolvedResult[] {
+export function resolveHits(
+	hits: SearchHit[],
+	state: IndexState,
+	limit: number,
+	exists: (path: string) => boolean = () => true,
+): ResolvedResult[] {
 	const paths = pathsByHash(state);
 	const out: ResolvedResult[] = [];
 	const seen = new Set<string>();
 	for (const hit of [...hits].sort((a, b) => b.score - a.score)) {
-		const path = paths.get(hit.contentHash)?.[0];
+		const path = paths.get(hit.contentHash)?.find(exists);
 		const key = `${hit.contentHash}:${hit.page}`;
 		if (!path || seen.has(key)) continue; // tiles of one image collapse into one result
 		seen.add(key);
