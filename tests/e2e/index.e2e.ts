@@ -9,6 +9,9 @@ describe('Index vault', () => {
 		const start = browser.$('button=Start indexing');
 		await start.waitForExist({ timeout: 30_000 });
 		await expect(browser.$('.modal')).toHaveText(expect.stringContaining('20 pages'));
+		await expect(browser.$('.modal')).toHaveText(
+			expect.stringContaining('Estimated TopK cost'),
+		);
 		await start.click();
 
 		await browser.waitUntil(async () => !(await isIndexing()), {

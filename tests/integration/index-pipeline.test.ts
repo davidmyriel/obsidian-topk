@@ -392,3 +392,18 @@ describe('tall images', () => {
 		]);
 	});
 });
+
+describe('failed files', () => {
+	it('are not retried until they change or the user retries', async () => {
+		const { root, deps, reader } = await setup();
+		writeFileSync(join(root, 'broken.pdf'), 'not a pdf');
+		const first = await runIndex(deps, options);
+		expect(first.failed.map((f) => f.path)).toEqual(['broken.pdf']);
+		const reads = reader.reads;
+		const second = await runIndex(deps, options);
+		expect(second.failed).toEqual([]); // not re-parsed, not reported again
+		expect(reader.reads).toBe(reads);
+		const retried = await runIndex(deps, { ...options, retryFailed: true });
+		expect(retried.failed.map((f) => f.path)).toEqual(['broken.pdf']);
+	});
+});

@@ -38,6 +38,8 @@ export interface IndexOptions extends PathFilter {
 	flushBytes: number;
 	/** Upsert requests in flight at once. */
 	concurrency: number;
+	/** Try files that failed before even though they have not changed (the Retry button). */
+	retryFailed?: boolean;
 }
 
 export const DEFAULT_INDEX_OPTIONS: Omit<
@@ -67,7 +69,8 @@ export interface IndexPlan {
 	/** Included files whose content is already indexed. */
 	unchanged: number;
 	skipped: { path: string; reason: string; pageCount: number }[];
-	failed: { path: string; reason: string }[];
+	/** Files that could not be read or opened; `hash` is set when the content is known. */
+	failed: { path: string; reason: string; hash?: string; extension?: string }[];
 	/** True when the scan was cancelled; the plan then covers only part of the vault. */
 	cancelled: boolean;
 }
@@ -157,6 +160,9 @@ export async function planIndex(
 			unchanged++;
 			continue;
 		}
+		// A file that failed stays failed until its content changes or the user retries, so a
+		// broken PDF is not re-parsed on every background run.
+		if (entry?.status === 'failed' && !options.retryFailed) continue;
 		let pageCount = entry?.pageCount ?? 0;
 		if (!entry || entry.status !== 'skipped') {
 			try {
@@ -164,7 +170,7 @@ export async function planIndex(
 				pageCount =
 					kind === 'image' ? 1 : await countPages(env, kind, await reader.read(path));
 			} catch (err) {
-				failed.push({ path, reason: errorText(err) });
+				failed.push({ path, reason: errorText(err), hash: stamp.hash, extension });
 				continue;
 			}
 		}
@@ -209,13 +215,26 @@ export async function runIndex(
 		pagesUploaded: 0,
 		pagesDeleted: 0,
 		skipped: plan.skipped.map(({ path, reason }) => ({ path, reason })),
-		failed: [...plan.failed],
+		failed: plan.failed.map(({ path, reason }) => ({ path, reason })),
 		cancelled: false,
 	};
 	// A partial scan must not replace the files map, or unscanned files would look deleted.
 	if (plan.cancelled) return { ...summary, cancelled: true };
 
 	state.files = plan.files;
+	// Content that could not be opened is recorded as failed, so it waits for a change or a retry.
+	for (const f of plan.failed) {
+		if (!f.hash || !f.extension) continue;
+		state.hashes[f.hash] = {
+			kind: sourceKind(f.extension) ?? 'pdf',
+			extension: f.extension,
+			pageCount: 0,
+			ids: state.hashes[f.hash]?.ids ?? [],
+			status: 'failed',
+			reason: f.reason,
+			updatedAt: now(),
+		};
+	}
 	for (const { path, reason, pageCount } of plan.skipped) {
 		const stamp = plan.files[path];
 		if (!stamp) continue;
