@@ -143,22 +143,26 @@ describe('index pipeline on the fixture vault with a fake TopK', () => {
 		expect(summary.filesIndexed).toBe(3);
 	});
 
-	it('stops on a TopK error after saving progress, then resumes', async () => {
+	it('stops on an upload error after saving progress, then resumes', async () => {
 		const { client, state, deps } = await setup();
 		let uploads = 0;
 		const original = client.upsertPages.bind(client);
 		client.upsertPages = (pages) => {
-			if (++uploads === 2) return Promise.reject(new TopKError('network', 'offline'));
+			if (++uploads === 17) return Promise.reject(new TopKError('network', 'offline'));
 			return original(pages);
 		};
-		await expect(runIndex(deps, options)).rejects.toThrow('offline');
-		const statuses = Object.values(state.hashes).map((h) => h.status);
-		expect(statuses).toContain('indexed');
-		expect(statuses).toContain('partial');
+		// One page per request, one at a time: handbook (15) and market-share (1) land, then call 17 fails.
+		const oneByOne = { ...options, flushBytes: 1, concurrency: 1 };
+		await expect(runIndex(deps, oneByOne)).rejects.toThrow('offline');
+		const byPath = (p: string) => state.hashes[state.files[p]?.hash ?? '']?.status;
+		expect(byPath('Docs/handbook.pdf')).toBe('indexed');
+		expect(byPath('market-share.png')).toBe('indexed');
+		expect(byPath('Photos/sunset.webp')).toBe('partial');
 
 		client.upsertPages = original;
 		const summary = await runIndex(deps, options);
 		expect(summary.failed).toEqual([]);
+		expect(summary.filesIndexed).toBe(2);
 		expect(Object.values(state.hashes).every((h) => h.status === 'indexed')).toBe(true);
 		expect(client.docs.size).toBe(FIXTURE_PAGE_COUNT);
 	});

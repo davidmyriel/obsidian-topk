@@ -25,11 +25,25 @@ export const GrpcCode = {
 	UNAUTHENTICATED: 16,
 } as const;
 
+/** TopK's own error codes, sent in the x-topk-error-code trailer (topk-rs error.rs). */
+export const TopKErrorCode = {
+	/** The query's required_lsn is not visible yet; retry for at least 2 s. */
+	LSN_NOT_READY: 1000,
+	PARTITION_NOT_FOUND: 1404,
+	DOCUMENT_NOT_FOUND: 1405,
+	/** The server is out of capacity; back off before retrying. */
+	SLOW_DOWN: 1429,
+} as const;
+
 export class GrpcError extends Error {
 	constructor(
 		readonly code: number,
 		readonly details: string,
 		readonly httpStatus?: number,
+		/** x-topk-error-code, when TopK sent one. */
+		readonly topkCode?: number,
+		/** x-request-id, for support requests. */
+		readonly requestId?: string,
 	) {
 		super(`gRPC ${code}: ${details}`);
 		this.name = 'GrpcError';
@@ -87,7 +101,15 @@ export function statusError(
 	if (code === GrpcCode.OK) return null;
 	const message = trailers['grpc-message'] ?? headers['grpc-message'];
 	const text = typeof message === 'string' ? safeDecode(message) : '';
-	return new GrpcError(code, text, httpStatus);
+	const topkCode = Number(trailers['x-topk-error-code'] ?? headers['x-topk-error-code']);
+	const requestId = trailers['x-request-id'] ?? headers['x-request-id'];
+	return new GrpcError(
+		code,
+		text,
+		httpStatus,
+		Number.isInteger(topkCode) && topkCode > 0 ? topkCode : undefined,
+		typeof requestId === 'string' ? requestId : undefined,
+	);
 }
 
 function safeDecode(value: string): string {
