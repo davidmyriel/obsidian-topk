@@ -1,4 +1,12 @@
-import { loadPdfJs, Modal, normalizePath, Notice, Setting, type App } from 'obsidian';
+import {
+	FileSystemAdapter,
+	loadPdfJs,
+	Modal,
+	normalizePath,
+	Notice,
+	Setting,
+	type App,
+} from 'obsidian';
 import type TopKVisualSearchPlugin from './main';
 import {
 	DEFAULT_INDEX_OPTIONS,
@@ -10,7 +18,13 @@ import {
 } from './indexer/indexer';
 import { progressText, summaryText } from './indexer/progress';
 import { runUntilDone } from './indexer/resilience';
-import { parseState, renamePaths, resetUploads, type IndexState } from './indexer/state';
+import {
+	bindToVault,
+	parseState,
+	renamePaths,
+	resetUploads,
+	type IndexState,
+} from './indexer/state';
 import { indexStatus } from './indexer/status';
 import { costSentence } from './util/cost';
 import type { PdfJsLike } from './render/pdfRenderer';
@@ -68,8 +82,24 @@ export class StateStore {
 				raw = null; // unreadable state means a fresh index, not a crash
 			}
 		}
-		this.cached = parseState(raw ?? this.cached, () => crypto.randomUUID(), collection);
-		return this.cached;
+		const state = parseState(raw ?? this.cached, () => crypto.randomUUID(), collection);
+		if (bindToVault(state, this.vaultKey(), () => crypto.randomUUID())) {
+			this.plugin.log.debug(
+				'index state came from another vault folder; starting a new vault id',
+			);
+		}
+		this.cached = state;
+		return state;
+	}
+
+	/** Obsidian's id for this vault folder (internal, but stable per vault); the folder path as a fallback. */
+	private vaultKey(): string {
+		const app = this.plugin.app as unknown as { appId?: string };
+		if (app.appId) return app.appId;
+		const adapter = this.plugin.app.vault.adapter;
+		return adapter instanceof FileSystemAdapter
+			? adapter.getBasePath()
+			: this.plugin.app.vault.getName();
 	}
 
 	async save(state: IndexState): Promise<void> {

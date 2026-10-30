@@ -7,6 +7,7 @@ import {
 	pathsByHash,
 	resetUploads,
 	STATE_VERSION,
+	bindToVault,
 } from '../../src/indexer/state';
 import { sourceKind } from '../../src/render/pageSource';
 
@@ -141,4 +142,43 @@ it('recognises supported file types', () => {
 		null,
 		null,
 	]);
+});
+
+describe('bindToVault (beta 1 F4)', () => {
+	it('adopts a state that has no vault key yet', () => {
+		const state = emptyState('v1', 'c');
+		expect(bindToVault(state, 'app-A', () => 'new')).toBe(false);
+		expect(state).toMatchObject({ vaultId: 'v1', vaultKey: 'app-A' });
+	});
+
+	it('gives a copied vault its own vault id and forgets the uploads it does not own', () => {
+		const state = parseState(
+			{
+				version: STATE_VERSION,
+				vaultId: 'v1',
+				collection: 'c',
+				vaultKey: 'app-A',
+				lastLsn: '9',
+				files: { 'a.pdf': { hash: 'h1', size: 1, mtime: 1 } },
+				hashes: {
+					h1: {
+						kind: 'pdf',
+						extension: 'pdf',
+						pageCount: 1,
+						ids: ['v1:h1:1:0'],
+						status: 'indexed',
+						updatedAt: 1,
+					},
+				},
+			},
+			() => 'unused',
+			'c',
+		);
+		expect(state.vaultKey).toBe('app-A');
+		expect(bindToVault(state, 'app-B', () => 'v2')).toBe(true);
+		expect(state).toMatchObject({ vaultId: 'v2', vaultKey: 'app-B', hashes: {} });
+		expect(state.lastLsn).toBeUndefined();
+		expect(Object.keys(state.files)).toEqual(['a.pdf']); // hashes kept, nothing to re-hash
+		expect(bindToVault(state, 'app-B', () => 'v3')).toBe(false);
+	});
 });

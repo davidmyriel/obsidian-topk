@@ -7,7 +7,14 @@ import {
 	type IndexOptions,
 	DEFAULT_INDEX_OPTIONS,
 } from '../../src/indexer/indexer';
-import { emptyState, pathsByHash, resetUploads, type IndexState } from '../../src/indexer/state';
+import {
+	bindToVault,
+	emptyState,
+	parseState,
+	pathsByHash,
+	resetUploads,
+	type IndexState,
+} from '../../src/indexer/state';
 import { TopKError, type PageDoc } from '../../src/topk/client';
 import { FakeTopK } from '../../src/topk/fake';
 import { tileRects } from '../../src/render/tiles';
@@ -484,5 +491,36 @@ describe('rejected pages (beta 1 F1)', () => {
 
 		const again = await runIndex(picky, options);
 		expect(again).toMatchObject({ pagesUploaded: 0, failed: [] });
+	});
+});
+
+describe('copied vaults (beta 1 F4)', () => {
+	it('a copy indexes under its own vault id, so its deletes and removal leave the original alone', async () => {
+		const { root, client, state: original, deps } = await setup();
+		original.vaultKey = 'app-A';
+		await runIndex(deps, options);
+
+		// The copy starts from the same state file, then is opened as a different vault.
+		const copyRoot = `${root}-copy`;
+		const { cpSync } = await import('node:fs');
+		cpSync(root, copyRoot, { recursive: true });
+		const copy = parseState(
+			JSON.parse(JSON.stringify(original)) as unknown,
+			() => 'unused',
+			'pages',
+		);
+		bindToVault(copy, 'app-B', () => 'vault-copy');
+		const copyDeps = { ...deps, reader: new DiskVault(copyRoot), state: copy };
+		rmSync(join(copyRoot, 'Talks', 'talk.pdf'));
+		await runIndex(copyDeps, options);
+
+		const [top] = await client.search(HERO_QUERY, 5, 'vault-1');
+		expect(top).toMatchObject({
+			contentHash: original.files[HERO.path]?.hash,
+			page: HERO.page,
+		});
+		await client.deleteVault('vault-copy');
+		expect((await client.search(HERO_QUERY, 5, 'vault-1'))[0]?.page).toBe(HERO.page);
+		rmSync(copyRoot, { recursive: true, force: true });
 	});
 });
