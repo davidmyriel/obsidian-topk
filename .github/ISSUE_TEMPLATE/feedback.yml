@@ -1,0 +1,16 @@
+name: Beta feedback
+description: Search quality, ideas, or anything that felt off.
+labels: [feedback, triage]
+body:
+    - type: textarea
+      id: feedback
+      attributes:
+          label: Feedback
+          description: Queries that worked well or badly are especially useful. Describe the page you expected instead of attaching it if it is private.
+      validations:
+          required: true
+    - type: input
+      id: vault-size
+      attributes:
+          label: Roughly how many PDFs and images are indexed?
+          placeholder: 120 PDFs, 3,000 pages

@@ -87,3 +87,9 @@ All notable changes to this project are documented here. The format follows
   finishes with every page exactly once and re-uploads at most the pages that were in flight; a
   5,000-page load test holds retained memory to about 10 MB (heap plus buffers, measured after
   garbage collection) while 586 MB of page images pass through, in 143 requests.
+- Beta release tooling: `release.yml` publishes a GitHub release from a version tag (no `v` prefix,
+  as Obsidian expects; pre-release tags such as `0.1.0-beta.1` become GitHub pre-releases for BRAT),
+  with notes from this changelog. `docs/BETA.md` (BRAT install, including private-repo tokens),
+  `docs/QA.md` (manual release checklist), and bug and feedback issue templates.
+- Bundle check in CI: `main.js` must stay under 1.5 MB, reference no host other than TopK's
+  regional endpoints, and contain no `eval` or `new Function`.

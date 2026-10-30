@@ -1,0 +1,61 @@
+name: Release
+
+# Push a tag equal to the version, without a "v" (Obsidian's convention): 0.1.0 or 0.1.0-beta.1.
+# Tags with a pre-release suffix become GitHub pre-releases for BRAT testers; their version is set
+# in the released manifest.json only, so the default branch's manifest does not move (BRAT docs).
+# Stable tags must already match manifest.json and versions.json on the tagged commit.
+
+on:
+    push:
+        tags: ['[0-9]+.[0-9]+.[0-9]+*']
+
+permissions:
+    contents: write
+
+jobs:
+    release:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v6
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: 24.x
+                  cache: npm
+            - run: npm ci
+            - run: npm run check
+
+            - name: Check the tag against manifest.json and versions.json
+              id: version
+              run: |
+                  tag="${GITHUB_REF_NAME}"
+                  if ! node -e "process.exit(/^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/.test(process.argv[1]) ? 0 : 1)" "$tag"; then
+                    echo "Tag $tag is not a version like 1.2.3 or 1.2.3-beta.1"; exit 1
+                  fi
+                  case "$tag" in *-*) prerelease=true ;; *) prerelease=false ;; esac
+                  if [ "$prerelease" = "true" ]; then
+                    echo "prerelease=true" >> "$GITHUB_OUTPUT"
+                    node -e "const fs=require('fs');const m=JSON.parse(fs.readFileSync('manifest.json'));m.version=process.argv[1];fs.writeFileSync('manifest.json',JSON.stringify(m,null,'\t')+'\n')" "$tag"
+                  else
+                    echo "prerelease=false" >> "$GITHUB_OUTPUT"
+                    node -e "const fs=require('fs');const m=JSON.parse(fs.readFileSync('manifest.json'));const v=JSON.parse(fs.readFileSync('versions.json'));const t=process.argv[1];if(m.version!==t){console.error('manifest.json is '+m.version);process.exit(1)}if(v[t]!==m.minAppVersion){console.error('versions.json lacks '+t);process.exit(1)}" "$tag"
+                  fi
+
+            - name: Release notes from CHANGELOG.md
+              run: |
+                  node -e "
+                    const fs = require('fs');
+                    const text = fs.readFileSync('CHANGELOG.md', 'utf8');
+                    const tag = process.argv[1];
+                    const sections = text.split(/^## /m).slice(1);
+                    const pick = sections.find((s) => s.startsWith('[' + tag + ']')) ?? sections.find((s) => s.startsWith('[Unreleased]'));
+                    fs.writeFileSync('release-notes.md', pick ? pick.slice(pick.indexOf('\n') + 1).trim() + '\n' : 'See CHANGELOG.md.\n');
+                  " "$GITHUB_REF_NAME"
+
+            - name: Create the GitHub release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  flags=""
+                  if [ "${{ steps.version.outputs.prerelease }}" = "true" ]; then flags="--prerelease"; fi
+                  gh release create "$GITHUB_REF_NAME" main.js manifest.json styles.css \
+                    --title "$GITHUB_REF_NAME" --notes-file release-notes.md $flags
