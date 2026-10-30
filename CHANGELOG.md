@@ -5,6 +5,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0-beta.1] - 2026-10-30
+
+First beta, for testers installing through BRAT (see docs/BETA.md).
+
+### Highlights
+
+- **Visual search:** describe a page ("slide with the reranker architecture diagram") and get the
+  matching PDF pages and images with thumbnails; click to open the PDF at that page.
+- **Index vault** uploads page images to your own TopK project, shows the page count and estimated
+  cost first, and then keeps the index up to date as files change.
+- Renames are free, deleted files are removed from TopK, interrupted runs resume, and indexing
+  pauses while offline.
+- **Show index status**, **Rebuild index**, **Remove my data from TopK**, **Clear local index**,
+  **Save results as note**.
+- Desktop only; Obsidian 1.11.4 or later. Needs a TopK API key (new accounts get $10 of credits;
+  about $0.13 per 1,000 pages).
+
 ### Added
 
 - Project scaffold from `obsidianmd/obsidian-sample-plugin`: strict TypeScript, esbuild, ESLint with the
