@@ -9,7 +9,7 @@ import {
 import { sha256Hex } from '../util/hash';
 import { compileFilter, type PathFilter } from './globs';
 import { Uploader } from './uploader';
-import type { FileStamp, IndexState } from './state';
+import { orphanedHashes, type FileStamp, type IndexState } from './state';
 
 // The index pipeline: scan the vault, hash changed files, render pages of files whose content is
 // not yet in TopK, and upload them. Runs without Obsidian; main.ts supplies the adapters.
@@ -83,6 +83,8 @@ export interface IndexSummary {
 	filesIndexed: number;
 	filesUnchanged: number;
 	pagesUploaded: number;
+	/** Pages removed from TopK because their file was deleted, changed or excluded. */
+	pagesDeleted: number;
 	skipped: { path: string; reason: string }[];
 	failed: { path: string; reason: string }[];
 	cancelled: boolean;
@@ -133,6 +135,8 @@ export async function planIndex(
 			const hash = await sha256Hex(await reader.read(file.path));
 			files[file.path] = { hash, size: file.size, mtime: file.mtime };
 		} catch (err) {
+			// Keep the last known hash, so a file that could not be read is not treated as deleted.
+			if (known) files[file.path] = known;
 			failed.push({ path: file.path, reason: errorText(err) });
 		}
 	}
@@ -203,6 +207,7 @@ export async function runIndex(
 		filesIndexed: 0,
 		filesUnchanged: plan.unchanged,
 		pagesUploaded: 0,
+		pagesDeleted: 0,
 		skipped: plan.skipped.map(({ path, reason }) => ({ path, reason })),
 		failed: [...plan.failed],
 		cancelled: false,
@@ -225,6 +230,24 @@ export async function runIndex(
 			updatedAt: now(),
 		};
 	}
+	// Remove what TopK holds for content that is gone: everything after a rebuild or migration,
+	// otherwise pages of files that were deleted, changed or excluded. No calls when nothing is gone.
+	if (state.needsPurge) {
+		const { lsn } = await client.deleteVault(state.vaultId);
+		if (lsn) state.lastLsn = lsn;
+		delete state.needsPurge;
+		await deps.save(state);
+	}
+	const orphans = orphanedHashes(state, plan.files);
+	const orphanIds = orphans.flatMap((hash) => state.hashes[hash]?.ids ?? []);
+	if (orphanIds.length > 0) {
+		const { lsn } = await client.deletePages(orphanIds);
+		if (lsn) state.lastLsn = lsn;
+		summary.pagesDeleted = orphanIds.length;
+	}
+	for (const hash of orphans) delete state.hashes[hash];
+	if (orphans.length > 0) await deps.save(state);
+
 	if (plan.work.length === 0 || deps.signal?.aborted) {
 		summary.cancelled = deps.signal?.aborted ?? false;
 		await deps.save(state);
@@ -297,7 +320,7 @@ export async function runIndex(
 				})) {
 					job.outstanding++;
 					await uploader.add({
-						id: pageId(item.hash, img.page, img.tile),
+						id: pageId(state.vaultId, item.hash, img.page, img.tile),
 						vaultId: state.vaultId,
 						contentHash: item.hash,
 						page: img.page,

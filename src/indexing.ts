@@ -10,7 +10,7 @@ import {
 } from './indexer/indexer';
 import { progressText, summaryText } from './indexer/progress';
 import { runUntilDone } from './indexer/resilience';
-import { parseState, type IndexState } from './indexer/state';
+import { parseState, resetUploads, type IndexState } from './indexer/state';
 import type { PdfJsLike } from './render/pdfRenderer';
 import type { RenderEnv } from './render/pageSource';
 import { TopKError } from './topk/client';
@@ -195,6 +195,123 @@ export class IndexController {
 			this.controller = null;
 			this.statusEl.hide();
 		}
+	}
+}
+
+/** Destructive maintenance commands. Each asks first and refuses to run during indexing. */
+export class IndexMaintenance {
+	constructor(
+		private readonly plugin: TopKVisualSearchPlugin,
+		private readonly indexer: IndexController,
+	) {}
+
+	async rebuild(): Promise<void> {
+		if (this.busy()) return;
+		const ok = await confirm(
+			this.plugin.app,
+			'Rebuild index?',
+			'This deletes this vault\u2019s pages from TopK and uploads every page again with the current settings.',
+			'Rebuild',
+		);
+		if (!ok) return;
+		const state = await this.plugin.stateStore.load();
+		resetUploads(state);
+		await this.plugin.stateStore.save(state);
+		await this.indexer.run();
+	}
+
+	async removeData(): Promise<void> {
+		if (this.busy()) return;
+		const ok = await confirm(
+			this.plugin.app,
+			'Remove your data from TopK?',
+			'This deletes every page image and embedding this vault uploaded to TopK. Other vaults in the same collection are not affected. Your files are not touched.',
+			'Remove',
+		);
+		if (!ok) return;
+		const client = this.plugin.createClient();
+		if (!client) return;
+		try {
+			const state = await this.plugin.stateStore.load();
+			await client.deleteVault(state.vaultId);
+			state.hashes = {};
+			delete state.lastLsn;
+			delete state.needsPurge;
+			await this.plugin.stateStore.save(state);
+			new Notice('Removed this vault\u2019s pages from TopK.');
+		} catch (err) {
+			new Notice(
+				err instanceof TopKError ? err.message : `Could not remove data: ${String(err)}`,
+				10_000,
+			);
+		} finally {
+			client.close();
+		}
+	}
+
+	async clearLocal(): Promise<void> {
+		if (this.busy()) return;
+		const ok = await confirm(
+			this.plugin.app,
+			'Clear local index?',
+			'This forgets what has been indexed on this device. The next index removes this vault\u2019s pages from TopK and uploads them again.',
+			'Clear',
+		);
+		if (!ok) return;
+		const state = await this.plugin.stateStore.load();
+		state.files = {};
+		resetUploads(state);
+		await this.plugin.stateStore.save(state);
+		this.plugin.lastSearch = null;
+		new Notice('Local index cleared.');
+	}
+
+	private busy(): boolean {
+		if (!this.indexer.running) return false;
+		new Notice('Wait for indexing to finish, or cancel it first.');
+		return true;
+	}
+}
+
+function confirm(app: App, title: string, body: string, cta: string): Promise<boolean> {
+	return new Promise((resolve) => new ConfirmModal(app, title, body, cta, resolve).open());
+}
+
+class ConfirmModal extends Modal {
+	private answered = false;
+
+	constructor(
+		app: App,
+		private readonly heading: string,
+		private readonly body: string,
+		private readonly cta: string,
+		private readonly answer: (ok: boolean) => void,
+	) {
+		super(app);
+	}
+
+	override onOpen(): void {
+		this.setTitle(this.heading);
+		this.contentEl.createEl('p', { text: this.body });
+		new Setting(this.contentEl)
+			.addButton((b) => b.setButtonText('Cancel').onClick(() => this.finish(false)))
+			.addButton((b) =>
+				b
+					.setButtonText(this.cta)
+					.setWarning()
+					.onClick(() => this.finish(true)),
+			);
+	}
+
+	override onClose(): void {
+		this.contentEl.empty();
+		if (!this.answered) this.answer(false);
+	}
+
+	private finish(ok: boolean): void {
+		this.answered = true;
+		this.answer(ok);
+		this.close();
 	}
 }
 

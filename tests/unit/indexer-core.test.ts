@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { compileFilter, globToRegExp, parseList } from '../../src/indexer/globs';
-import { emptyState, parseState, pathsByHash, STATE_VERSION } from '../../src/indexer/state';
+import {
+	emptyState,
+	orphanedHashes,
+	parseState,
+	pathsByHash,
+	resetUploads,
+	STATE_VERSION,
+} from '../../src/indexer/state';
 import { sourceKind } from '../../src/render/pageSource';
 
 describe('globToRegExp', () => {
@@ -91,6 +98,30 @@ describe('index state', () => {
 		expect(state.hashes).toEqual({});
 		expect(state.lastLsn).toBeUndefined();
 		expect(Object.keys(state.files)).toHaveLength(2);
+	});
+
+	it('migrates version 1 state: keeps vault and files, forgets uploads, asks for a purge', () => {
+		const v1 = { ...stored, version: 1 };
+		const state = parseState(v1, () => 'new', 'c1');
+		expect(state.version).toBe(STATE_VERSION);
+		expect(state.vaultId).toBe('v1');
+		expect(Object.keys(state.files)).toEqual(['a.pdf', 'b.pdf']);
+		expect(state.hashes).toEqual({});
+		expect(state.needsPurge).toBe(true);
+		expect(state.lastLsn).toBeUndefined();
+		// The purge flag survives a save and reload.
+		expect(parseState(JSON.parse(JSON.stringify(state)), () => 'new', 'c1').needsPurge).toBe(
+			true,
+		);
+	});
+
+	it('finds hashes whose content is gone and resets uploads', () => {
+		const state = parseState(stored, () => 'new', 'c1');
+		expect(orphanedHashes(state, {})).toEqual(['h1']);
+		expect(orphanedHashes(state, { 'x.pdf': { hash: 'h1', size: 1, mtime: 1 } })).toEqual([]);
+		resetUploads(state);
+		expect(state).toMatchObject({ hashes: {}, needsPurge: true });
+		expect(state.lastLsn).toBeUndefined();
 	});
 
 	it('groups paths by hash', () => {
