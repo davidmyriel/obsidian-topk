@@ -43,9 +43,15 @@ export interface RenderCanvas {
 
 export type CanvasFactory = (width: number, height: number) => RenderCanvas;
 
-export interface RenderOptions {
-	/** Target length of the longer side in pixels. */
-	longSide: number;
+/** Output size: a pixel budget (width × height), a long side, or both (the smaller wins). */
+export interface RenderSize {
+	/** Upper bound on width × height. topk-embed-v1 sees at most 1,310,720 pixels (ADR-003). */
+	maxPixels?: number;
+	/** Length of the longer side in pixels. */
+	longSide?: number;
+}
+
+export interface RenderOptions extends RenderSize {
 	format: ImageFormat;
 	/** JPEG quality, 0..1. */
 	quality: number;
@@ -82,6 +88,27 @@ export class ImageTooLargeError extends Error {
 /** Scale that makes the longer side of a viewport at scale 1 equal to longSide. */
 export function scaleForLongSide(viewport: PdfViewport, longSide: number): number {
 	return longSide / Math.max(viewport.width, viewport.height);
+}
+
+/** Scale for a size at scale 1 so the output meets every limit in size (may be above 1). */
+export function scaleFor(width: number, height: number, size: RenderSize): number {
+	let scale = Number.POSITIVE_INFINITY;
+	if (size.longSide) scale = Math.min(scale, size.longSide / Math.max(width, height));
+	if (size.maxPixels) scale = Math.min(scale, Math.sqrt(size.maxPixels / (width * height)));
+	if (!Number.isFinite(scale)) throw new Error('RenderSize needs maxPixels or longSide');
+	return scale;
+}
+
+/** Pixel dimensions at a scale, rounded down so a pixel budget is never exceeded. */
+export function scaledDimensions(
+	width: number,
+	height: number,
+	scale: number,
+): { width: number; height: number } {
+	return {
+		width: Math.max(1, Math.floor(width * scale + 1e-6)),
+		height: Math.max(1, Math.floor(height * scale + 1e-6)),
+	};
 }
 
 const QUALITY_STEPS = [0.85, 0.75, 0.65, 0.5];
@@ -122,11 +149,11 @@ export async function* renderPdfPages(
 		const last = Math.min(doc.numPages, options.maxPages ?? Number.POSITIVE_INFINITY);
 		for (let n = 1; n <= last; n++) {
 			const page = await doc.getPage(n);
+			const base = page.getViewport({ scale: 1 });
 			const viewport = page.getViewport({
-				scale: scaleForLongSide(page.getViewport({ scale: 1 }), options.longSide),
+				scale: scaleFor(base.width, base.height, options),
 			});
-			const width = Math.round(viewport.width);
-			const height = Math.round(viewport.height);
+			const { width, height } = scaledDimensions(viewport.width, viewport.height, 1);
 			const target = createCanvas(width, height);
 			try {
 				const t0 = now();

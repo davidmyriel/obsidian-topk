@@ -21,7 +21,7 @@ describe('settings validation', () => {
 				includeFolders: ['Docs', ' '],
 				excludeGlobs: ['Private/**'],
 				maxPagesPerFile: 50,
-				longSide: 1536,
+				maxPixels: 655_360,
 				debugLog: true,
 				uploadConsent: true,
 			},
@@ -33,7 +33,7 @@ describe('settings validation', () => {
 			collection: 'my_pages-2',
 			includeFolders: ['Docs'],
 			maxPagesPerFile: 50,
-			longSide: 1536,
+			maxPixels: 655_360,
 			uploadConsent: true,
 		});
 	});
@@ -45,7 +45,7 @@ describe('settings validation', () => {
 				endpoint: 'ftp://x',
 				collection: 'has space',
 				maxPagesPerFile: 0,
-				longSide: 999,
+				maxPixels: 999,
 				excludeGlobs: [1],
 			},
 			'.obsidian',

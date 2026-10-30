@@ -19,7 +19,7 @@ const options: IndexOptions = {
 	includeFolders: [],
 	excludeGlobs: ['.obsidian/**', '.trash/**'],
 	maxPagesPerFile: 300,
-	longSide: 512, // small renders keep the test fast
+	maxPixels: 300_000, // small renders keep the test fast
 };
 
 let cleanup: (() => void) | undefined;
@@ -76,7 +76,7 @@ describe('index pipeline on the fixture vault with a fake TopK', () => {
 		});
 		expect([...client.docs.values()].every((d) => d.vaultId === 'vault-1')).toBe(true);
 
-		// Images larger than the long side (800 px PNG at 512) and WebP are re-encoded as JPEG.
+		// Images over the pixel budget (an 800×600 PNG at 300k) and WebP are re-encoded as JPEG.
 		const docs = [...client.docs.values()];
 		const png = docs.find((d) => d.contentHash === state.files['market-share.png']?.hash);
 		const webp = docs.find((d) => d.contentHash === state.files['Photos/sunset.webp']?.hash);
@@ -191,12 +191,12 @@ describe('index pipeline on the fixture vault with a fake TopK', () => {
 });
 
 describe('prepareImage', () => {
-	it('uploads a PNG unchanged when it fits the long side and size limit', async () => {
+	it('uploads a PNG unchanged when it fits the pixel budget and size limit', async () => {
 		const { prepareImage } = await import('../../src/render/pageSource');
 		const { FIXTURE_VAULT } = await import('../support/fixtures');
 		const bytes = new Uint8Array(readFileSync(join(FIXTURE_VAULT, 'market-share.png')));
 		const out = await prepareImage(nodeRenderEnv, 'png', bytes, {
-			longSide: 1024,
+			maxPixels: 1_310_720,
 			quality: 0.85,
 			maxBytes: 512 * 1024,
 		});

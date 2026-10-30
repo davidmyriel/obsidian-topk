@@ -27,7 +27,8 @@ export interface VaultReader {
 
 export interface IndexOptions extends PathFilter {
 	maxPagesPerFile: number;
-	longSide: number;
+	/** Upper bound on width × height of each uploaded page image (ADR-003). */
+	maxPixels: number;
 	/** JPEG quality, 0..1. */
 	quality: number;
 	/** TopK's per-image limit (ADR-002). */
@@ -38,7 +39,7 @@ export interface IndexOptions extends PathFilter {
 
 export const DEFAULT_INDEX_OPTIONS: Omit<
 	IndexOptions,
-	keyof PathFilter | 'maxPagesPerFile' | 'longSide'
+	keyof PathFilter | 'maxPagesPerFile' | 'maxPixels'
 > = {
 	quality: 0.85,
 	maxImageBytes: 512 * 1024,
@@ -262,7 +263,7 @@ export async function runIndex(
 		try {
 			const data = await deps.reader.read(item.path);
 			for await (const img of pageImages(deps.env, item.kind, item.extension, data, {
-				longSide: options.longSide,
+				maxPixels: options.maxPixels,
 				quality: options.quality,
 				maxBytes: options.maxImageBytes,
 			})) {

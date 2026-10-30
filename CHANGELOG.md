@@ -52,3 +52,8 @@ All notable changes to this project are documented here. The format follows
 - README with usage, network use and install instructions; `docs/ARCHITECTURE.md`.
 - Windows e2e runs the minimum Obsidian (1.11.4) on the latest installer; the oldest installer
   crashes when drawing any PDF on GitHub's Windows runners, Obsidian's own viewer included.
+- Pages are rendered to topk-embed-v1's pixel budget (1,310,720 px, about 1.3 MP) instead of a 1024 px
+  long side, so slides and A4 pages both give the model full detail. The "Page image size" setting
+  now offers "Full detail (1.3 MP)" and "Smaller uploads (0.66 MP)". Pages indexed earlier keep their
+  old renders until the file changes. Pricing and resolution findings are in
+  `docs/spikes/E-topk-embed-v1.md`.

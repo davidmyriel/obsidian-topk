@@ -52,3 +52,20 @@ describe('renderPdfPages with pdfjs-dist', () => {
 		expect(seen).toEqual([1, 2]);
 	});
 });
+
+describe('pixel budget', () => {
+	it('renders a 16:9 slide to the model budget without exceeding it', async () => {
+		const pdfjs = await loadNodePdfJs();
+		for await (const p of renderPdfPages(pdfjs, new Uint8Array(talk), nodeCanvasFactory, {
+			maxPixels: 1_310_720,
+			format: 'jpeg',
+			quality: 0.85,
+			maxBytes: 512 * 1024,
+			maxPages: 1,
+			documentOptions: nodeDocumentOptions,
+		})) {
+			expect([p.width, p.height]).toEqual([1526, 858]);
+			expect(p.width * p.height).toBeLessThanOrEqual(1_310_720);
+		}
+	});
+});
