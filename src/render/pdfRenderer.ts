@@ -35,8 +35,16 @@ export interface RenderCanvas {
 	context: unknown;
 	/** Encodes the canvas. quality applies to JPEG only, 0..1. */
 	encode(format: ImageFormat, quality: number): Promise<Uint8Array>;
-	/** Draws a decoded image (see DecodedImage.source) scaled to the given size at 0,0. */
-	drawImage(source: unknown, width: number, height: number): void;
+	/**
+	 * Draws a decoded image (see DecodedImage.source), or the `crop` region of it, scaled to the
+	 * given size at 0,0.
+	 */
+	drawImage(
+		source: unknown,
+		width: number,
+		height: number,
+		crop?: { x: number; y: number; width: number; height: number },
+	): void;
 	/** Frees the backing memory, e.g. by setting width and height to 0. */
 	release(): void;
 }

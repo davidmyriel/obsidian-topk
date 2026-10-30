@@ -10,6 +10,8 @@ import {
 import { emptyState, pathsByHash, resetUploads, type IndexState } from '../../src/indexer/state';
 import { TopKError } from '../../src/topk/client';
 import { FakeTopK } from '../../src/topk/fake';
+import { tileRects } from '../../src/render/tiles';
+import { resolveHits } from '../../src/search/results';
 import { sha256Hex } from '../../src/util/hash';
 import { FIXTURE_PAGE_COUNT, fixtureScorer, HERO, HERO_QUERY } from '../support/fixtures';
 import { DiskVault, nodeRenderEnv, tempVault } from '../support/nodeVault';
@@ -303,5 +305,90 @@ describe('resume', () => {
 		expect(client.docs.size).toBe(FIXTURE_PAGE_COUNT);
 		expect(Object.values(state.hashes).every((h) => h.status === 'indexed')).toBe(true);
 		expect(state.hashes[state.files['Docs/handbook.pdf']?.hash ?? '']?.ids).toHaveLength(15);
+	});
+});
+
+describe('tall images', () => {
+	async function addTallScreenshot(root: string): Promise<void> {
+		const { createCanvas } = await import('@napi-rs/canvas');
+		const canvas = createCanvas(900, 4000);
+		const ctx = canvas.getContext('2d');
+		['#e74c3c', '#3498db', '#2ecc71', '#f1c40f'].forEach((color, i) => {
+			ctx.fillStyle = color;
+			ctx.fillRect(0, i * 1000, 900, 1000);
+		});
+		writeFileSync(join(root, 'long-screenshot.png'), canvas.toBuffer('image/png'));
+	}
+
+	it('splits an image taller than 2.5x its width into overlapping tiles of one result', async () => {
+		const { root, client, state, deps } = await setup();
+		await addTallScreenshot(root);
+		await runIndex(deps, options);
+		const hash = state.files['long-screenshot.png']?.hash ?? '';
+		const tiles = [...client.docs.values()].filter((d) => d.contentHash === hash);
+		const expected = tileRects(900, 4000).length;
+		expect(expected).toBeGreaterThan(1);
+		expect(tiles.map((t) => t.tile).sort((a, b) => a - b)).toEqual([...Array(expected).keys()]);
+		expect(
+			tiles.every(
+				(t) => t.kind === 'image_tile' && t.page === 1 && t.image.format === 'jpeg',
+			),
+		).toBe(true);
+		expect(tiles.every((t) => t.image.bytes.length <= 512 * 1024)).toBe(true);
+		expect(state.hashes[hash]).toMatchObject({ status: 'indexed', pageCount: expected });
+
+		// Each tile is a crop, not the whole image squashed: the first is red, the last yellow.
+		const { createCanvas, loadImage } = await import('@napi-rs/canvas');
+		const pixel = async (bytes: Uint8Array, fy: number): Promise<number[]> => {
+			const img = await loadImage(Buffer.from(bytes));
+			const c = createCanvas(img.width, img.height);
+			const ctx = c.getContext('2d');
+			ctx.drawImage(img, 0, 0);
+			return Array.from(
+				ctx
+					.getImageData(Math.floor(img.width / 2), Math.floor(img.height * fy), 1, 1)
+					.data.slice(0, 3),
+			);
+		};
+		const sorted = [...tiles].sort((a, b) => a.tile - b.tile);
+		const [r, g, b] = await pixel(sorted[0]?.image.bytes ?? new Uint8Array(), 0.1);
+		expect(r).toBeGreaterThan(200);
+		expect(g).toBeLessThan(110);
+		expect(b).toBeLessThan(110);
+		const [r2, g2, b2] = await pixel(sorted.at(-1)?.image.bytes ?? new Uint8Array(), 0.9);
+		expect(r2).toBeGreaterThan(200);
+		expect(g2).toBeGreaterThan(170);
+		expect(b2).toBeLessThan(80);
+
+		// Tiles collapse into one result pointing at the image.
+		const hits = tiles.map((t, i) => ({
+			id: t.id,
+			contentHash: hash,
+			page: 1,
+			tile: t.tile,
+			kind: t.kind,
+			score: 10 - i,
+		}));
+		expect(resolveHits(hits, state, 10)).toEqual([
+			{
+				path: 'long-screenshot.png',
+				page: 1,
+				kind: 'image_tile',
+				score: 10,
+				contentHash: hash,
+			},
+		]);
+	});
+
+	it('fails a tall image that needs more tiles than the page limit', async () => {
+		const { root, deps } = await setup();
+		await addTallScreenshot(root);
+		const summary = await runIndex(deps, { ...options, maxPagesPerFile: 2 });
+		expect(summary.failed).toEqual([
+			{
+				path: 'long-screenshot.png',
+				reason: expect.stringContaining('tiles, over the limit of 2') as unknown,
+			},
+		]);
 	});
 });

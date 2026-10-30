@@ -1,3 +1,4 @@
+import { tileRects } from './tiles';
 import {
 	countPdfPages,
 	encodeWithinLimit,
@@ -30,6 +31,8 @@ export interface RenderEnv {
 }
 
 export interface PageImageOptions {
+	/** Upper bound on tiles for one tall image; more fails the file (the page limit). */
+	maxTiles?: number;
 	/** PDF pages to skip without rendering (already uploaded). */
 	skipPage?: (page: number) => boolean;
 	/** Upper bound on width × height of each uploaded image (ADR-003). */
@@ -41,6 +44,8 @@ export interface PageImageOptions {
 export interface PageImage {
 	page: number;
 	tile: number;
+	/** True for tiles of a tall image (kind image_tile). */
+	tiled?: boolean;
 	format: ImageFormat;
 	bytes: Uint8Array;
 }
@@ -90,7 +95,59 @@ export async function* pageImages(
 		}
 		return;
 	}
-	yield { page: 1, tile: 0, ...(await prepareImage(env, extension, data, options)) };
+	yield* imagePages(env, extension, data, options);
+}
+
+/**
+ * One image, or its tiles when it is much taller than wide (see tiles.ts). Each tile is scaled to
+ * the pixel budget on its own, so a long screenshot keeps readable detail.
+ */
+export async function* imagePages(
+	env: RenderEnv,
+	extension: string,
+	data: Uint8Array,
+	options: PageImageOptions,
+): AsyncGenerator<PageImage> {
+	const mime = MIME[extension.toLowerCase()];
+	if (!mime) throw new Error(`unsupported image type .${extension}`);
+	const image = await env.decodeImage(data, mime);
+	try {
+		const rects = tileRects(image.width, image.height);
+		if (rects.length === 1) {
+			yield {
+				page: 1,
+				tile: 0,
+				...(await encodeImage(env, extension, data, image, options)),
+			};
+			return;
+		}
+		const limit = options.maxTiles ?? Number.POSITIVE_INFINITY;
+		if (rects.length > limit) {
+			throw new Error(
+				`tall image would need ${rects.length} tiles, over the limit of ${limit}`,
+			);
+		}
+		for (const [tile, rect] of rects.entries()) {
+			const scale = Math.min(
+				1,
+				scaleFor(rect.width, rect.height, { maxPixels: options.maxPixels }),
+			);
+			const { width, height } = scaledDimensions(rect.width, rect.height, scale);
+			const canvas = env.createCanvas(width, height);
+			try {
+				canvas.drawImage(image.source, width, height, rect);
+				const { bytes } = await encodeWithinLimit(canvas, 1, {
+					format: 'jpeg',
+					...options,
+				});
+				yield { page: 1, tile, format: 'jpeg', bytes, tiled: true };
+			} finally {
+				canvas.release();
+			}
+		}
+	} finally {
+		image.close();
+	}
 }
 
 /**
@@ -103,34 +160,44 @@ export async function prepareImage(
 	data: Uint8Array,
 	options: PageImageOptions,
 ): Promise<{ format: ImageFormat; bytes: Uint8Array }> {
-	const ext = extension.toLowerCase();
-	const mime = MIME[ext];
-	if (!mime) throw new Error(`unsupported image type .${ext}`);
+	const mime = MIME[extension.toLowerCase()];
+	if (!mime) throw new Error(`unsupported image type .${extension}`);
 	const image = await env.decodeImage(data, mime);
 	try {
-		const passthrough: ImageFormat | null =
-			ext === 'png' ? 'png' : ext === 'jpg' || ext === 'jpeg' ? 'jpeg' : null;
-		if (
-			passthrough &&
-			data.length <= options.maxBytes &&
-			image.width * image.height <= options.maxPixels
-		) {
-			return { format: passthrough, bytes: data };
-		}
-		const scale = Math.min(
-			1,
-			scaleFor(image.width, image.height, { maxPixels: options.maxPixels }),
-		);
-		const { width, height } = scaledDimensions(image.width, image.height, scale);
-		const canvas = env.createCanvas(width, height);
-		try {
-			canvas.drawImage(image.source, width, height);
-			const { bytes } = await encodeWithinLimit(canvas, 1, { format: 'jpeg', ...options });
-			return { format: 'jpeg', bytes };
-		} finally {
-			canvas.release();
-		}
+		return await encodeImage(env, extension, data, image, options);
 	} finally {
 		image.close();
+	}
+}
+
+async function encodeImage(
+	env: RenderEnv,
+	extension: string,
+	data: Uint8Array,
+	image: DecodedImage,
+	options: PageImageOptions,
+): Promise<{ format: ImageFormat; bytes: Uint8Array }> {
+	const ext = extension.toLowerCase();
+	const passthrough: ImageFormat | null =
+		ext === 'png' ? 'png' : ext === 'jpg' || ext === 'jpeg' ? 'jpeg' : null;
+	if (
+		passthrough &&
+		data.length <= options.maxBytes &&
+		image.width * image.height <= options.maxPixels
+	) {
+		return { format: passthrough, bytes: data };
+	}
+	const scale = Math.min(
+		1,
+		scaleFor(image.width, image.height, { maxPixels: options.maxPixels }),
+	);
+	const { width, height } = scaledDimensions(image.width, image.height, scale);
+	const canvas = env.createCanvas(width, height);
+	try {
+		canvas.drawImage(image.source, width, height);
+		const { bytes } = await encodeWithinLimit(canvas, 1, { format: 'jpeg', ...options });
+		return { format: 'jpeg', bytes };
+	} finally {
+		canvas.release();
 	}
 }

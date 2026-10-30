@@ -23,7 +23,20 @@ export const domCanvasFactory: CanvasFactory = (width, height) => {
 					quality,
 				);
 			}),
-		drawImage: (source, w, h) => context.drawImage(source as CanvasImageSource, 0, 0, w, h),
+		drawImage: (source, w, h, crop) =>
+			crop
+				? context.drawImage(
+						source as CanvasImageSource,
+						crop.x,
+						crop.y,
+						crop.width,
+						crop.height,
+						0,
+						0,
+						w,
+						h,
+					)
+				: context.drawImage(source as CanvasImageSource, 0, 0, w, h),
 		release: () => {
 			canvas.width = 0;
 			canvas.height = 0;

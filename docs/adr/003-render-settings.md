@@ -45,3 +45,11 @@ full detail with no wasted upload. Approved by Dave on 2026-10-30.
 The budget is read from the open small and xsmall models; TopK has not published the production
 model's preprocessing. Pages indexed before this change keep their old renders until the file
 changes or the index is rebuilt (Stage 2).
+
+## Addition, 2026-10-30: tall images
+
+Images taller than 2.5 times their width are split into tiles of `width × width·√2` (A4 portrait)
+with 10% overlap, the last tile aligned to the bottom. Each tile is scaled to the pixel budget on
+its own and uploaded as kind `image_tile`, page 1, tile 0…n−1 (`src/render/tiles.ts`). Search
+results collapse tiles into one result for the image. More tiles than "max pages per file" fails
+the file with a reason instead of uploading hundreds of documents.
