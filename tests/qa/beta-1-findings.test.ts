@@ -11,13 +11,10 @@ import {
 	type IndexOptions,
 	type IndexProgress,
 } from '../../src/indexer/indexer';
-import { emptyState, parseState, type IndexState } from '../../src/indexer/state';
+import { emptyState, parseState } from '../../src/indexer/state';
 import { prepareImage } from '../../src/render/pageSource';
 import type { PdfJsLike } from '../../src/render/pdfRenderer';
-import { resolveHits } from '../../src/search/results';
-import { TopKError, type PageDoc } from '../../src/topk/client';
 import { FakeTopK } from '../../src/topk/fake';
-import { fixtureScorer, HERO, HERO_QUERY } from '../support/fixtures';
 import { DiskVault, nodeRenderEnv, tempVault } from '../support/nodeVault';
 
 const options: IndexOptions = {
@@ -54,62 +51,6 @@ const textImage = (w: number, h: number, background: boolean): Uint8Array => {
 	ctx.fillText('QUARTERLY REVENUE FORECAST', 10, h / 2);
 	return new Uint8Array(c.encodeSync('png'));
 };
-
-/**
- * Rejects an upsert whose image bytes do not match the declared format, failing the whole request,
- * exactly as live TopK did on 2026-10-30 ("Invalid image: Format error decoding Jpeg ...").
- */
-class StrictTopK extends FakeTopK {
-	override upsertPages(pages: PageDoc[]): Promise<{ lsn: string }> {
-		for (const p of pages) {
-			const b = p.image.bytes;
-			const isPng = b[0] === 0x89 && b[1] === 0x50;
-			const isJpeg = b[0] === 0xff && b[1] === 0xd8;
-			if ((p.image.format === 'png' && !isPng) || (p.image.format === 'jpeg' && !isJpeg)) {
-				return Promise.reject(
-					new TopKError(
-						'invalid',
-						'TopK rejected the request: Invalid image: Format error',
-					),
-				);
-			}
-		}
-		return super.upsertPages(pages);
-	}
-}
-
-describe('F1: a misnamed image (PNG bytes in a .jpg) blocks indexing for every run', () => {
-	it('records the bad file as failed and still indexes the other files', async () => {
-		const { root, reader } = vault();
-		// A PNG saved with a .jpg extension: common for downloads and screenshots.
-		writeFileSync(join(root, 'Photos', 'misnamed.jpg'), textImage(400, 300, true));
-		const client = new StrictTopK();
-		await client.ensureCollection();
-		const state = emptyState('v1', 'c');
-		const deps = { reader, client, env: nodeRenderEnv, state, save: noSave };
-		for (let run = 0; run < 2; run++) {
-			try {
-				await runIndex(deps, options);
-			} catch {
-				// The background run swallows this into a notice and tries again next time.
-			}
-		}
-		const statuses = Object.values(state.hashes).map((h) => h.status);
-		expect(statuses.filter((s) => s === 'indexed').length).toBe(4); // the 4 fixture files
-		expect(statuses).toContain('failed'); // misnamed.jpg, reported in Show index status
-	});
-
-	it('declares the format the bytes actually have', async () => {
-		const png = textImage(400, 300, true);
-		const out = await prepareImage(nodeRenderEnv, 'jpg', png, {
-			maxPixels: 1_310_720,
-			quality: 0.85,
-			maxBytes: 512 * 1024,
-		});
-		const isPng = out.bytes[0] === 0x89 && out.bytes[1] === 0x50;
-		expect(isPng ? 'png' : 'jpeg').toBe(out.format);
-	});
-});
 
 describe('F2: transparent PNGs are uploaded with their alpha channel', () => {
 	it('flattens a transparent PNG onto white before upload', async () => {
@@ -153,31 +94,6 @@ describe('F3: pages of a file that fails mid-render stay in TopK untracked', () 
 		const tracked = new Set(Object.values(state.hashes).flatMap((h) => h.ids));
 		const untracked = [...client.docs.keys()].filter((id) => !tracked.has(id));
 		expect(untracked).toEqual([]);
-	});
-});
-
-describe('F4: a copied vault shares the vault id with the original', () => {
-	it('deleting a file in the copy does not remove the original vault’s pages', async () => {
-		const a = vault();
-		const cleanA = cleanup;
-		const client = new FakeTopK(await fixtureScorer(a.root));
-		const stateA = emptyState('vault-id', 'c');
-		await runIndex(
-			{ reader: a.reader, client, env: nodeRenderEnv, state: stateA, save: noSave },
-			options,
-		);
-		// The user duplicates the vault folder, .obsidian (and index-state.json) included.
-		const b = vault();
-		const stateB: IndexState = structuredClone(stateA);
-		rmSync(join(b.root, HERO.path));
-		await runIndex(
-			{ reader: b.reader, client, env: nodeRenderEnv, state: stateB, save: noSave },
-			options,
-		);
-		cleanA?.();
-		// The original vault still has talk.pdf and still says it is indexed.
-		const hits = await client.search(HERO_QUERY, 20, stateA.vaultId);
-		expect(resolveHits(hits, stateA, 10)[0]).toMatchObject(HERO);
 	});
 });
 

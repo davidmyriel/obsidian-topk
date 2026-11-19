@@ -380,6 +380,33 @@ the user runs Index vault. The old collection is not cleaned up (F11).
 to end, note-name collisions on case-insensitive file systems, or the race specs on Obsidian
 1.11.4.
 
+## Triage (2026-11-19)
+
+Checked against `main` at `32d13bf` (`0.1.0-beta.2`). Beta 2 testers reported no data-loss or
+duplicate-result bugs, so this closes Stage 2.
+
+**Fixed in 0.1.0-beta.2:** F1, F2, F4, F7, F8, F9, F10, F13, D1. The Node reproductions for F1 and
+F4 were removed: F1 now indexes the misnamed image instead of failing it, and the F4 fix lives in
+the plugin layer (`src/indexing.ts`), which the Node test bypassed. Both are covered by the regular
+suite. The e2e specs for F7–F10 were not rerun.
+
+**Fix before v1.0.0** (Stage 3, before the repo goes public):
+
+| #   | Why before launch                                                                  | Repro        |
+| --- | ---------------------------------------------------------------------------------- | ------------ |
+| F5  | "Remove my data" misses earlier uploads after a corrupt state file                 | fails (Node) |
+| F3  | Pages stay in TopK untracked after a failed render                                 | fails (Node) |
+| F11 | Old collection keeps its pages, and "Remove my data" no longer reaches them        | none         |
+| F6  | Cost preview undercounts tall images, and progress shows done > total              | fails (Node) |
+| F17 | API key sent in cleartext to a remote `http://` endpoint without a warning         | none         |
+| F12 | Pasting a long paragraph shows a raw TopK error                                    | none         |
+| F16 | A file deleted mid-run is reported as failed                                       | none         |
+| D2  | Say to run "Remove my data" before uninstalling, and not to copy the plugin folder | n/a          |
+| D3  | Collection setting text promises a re-index that does not happen                   | n/a          |
+
+**Deferred to Stage 4:** F14 (identical files in two folders open the first path only) and F15
+(empty files share a hash). Both are cosmetic and lose no data.
+
 ## Summary
 
 1. Two blockers. One misnamed image (PNG bytes in a `.jpg`) makes TopK reject the batch, so the
