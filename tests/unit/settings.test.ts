@@ -68,6 +68,9 @@ describe('settings validation', () => {
 		['', null],
 		['https://aws-us-east-1-elastica.api.topk.io', null],
 		['http://127.0.0.1:50051', null],
+		['http://localhost:50051', null],
+		['http://[::1]:50051', null],
+		['http://topk.example.com', expect.stringContaining('unencrypted') as unknown],
 		['https://host/path', expect.stringContaining('origin') as unknown],
 		['not a url', expect.stringContaining('full URL') as unknown],
 	])('endpoint %j', (endpoint, expected) => {

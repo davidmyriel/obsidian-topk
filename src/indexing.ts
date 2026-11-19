@@ -20,7 +20,7 @@ import { progressText, summaryText } from './indexer/progress';
 import { runUntilDone } from './indexer/resilience';
 import {
 	bindToVault,
-	parseState,
+	loadState,
 	renamePaths,
 	resetUploads,
 	type IndexState,
@@ -82,13 +82,22 @@ export class StateStore {
 				raw = null; // unreadable state means a fresh index, not a crash
 			}
 		}
-		const state = parseState(raw ?? this.cached, () => crypto.randomUUID(), collection);
+		const s = this.plugin.settings;
+		const backup = s.vaultId
+			? { vaultId: s.vaultId, ...(s.vaultKey ? { vaultKey: s.vaultKey } : {}) }
+			: null;
+		const state = loadState(raw ?? this.cached, backup, () => crypto.randomUUID(), collection);
 		if (bindToVault(state, this.vaultKey(), () => crypto.randomUUID())) {
 			this.plugin.log.debug(
 				'index state came from another vault folder; starting a new vault id',
 			);
 		}
 		this.cached = state;
+		if (s.vaultId !== state.vaultId || s.vaultKey !== (state.vaultKey ?? '')) {
+			s.vaultId = state.vaultId;
+			s.vaultKey = state.vaultKey ?? '';
+			await this.plugin.saveSettings();
+		}
 		return state;
 	}
 
@@ -229,6 +238,13 @@ export class IndexController {
 					this.textEl.setText(progressText(p));
 				},
 			};
+			// Pages left in a collection this vault no longer uses are deleted first.
+			// A failure here (offline, say) must not block indexing; the next run tries again.
+			await this.plugin
+				.purgeStaleCollections(state)
+				.catch((err: unknown) =>
+					this.plugin.log.debug('old collection cleanup failed', String(err)),
+				);
 			const options = { ...indexOptions(this.plugin), retryFailed };
 			const plan = await planIndex(deps, options);
 			this.plugin.log.debug('index plan', {
@@ -327,6 +343,7 @@ export class IndexMaintenance {
 			if (!client) return;
 			try {
 				const state = await this.plugin.stateStore.load();
+				await this.plugin.purgeStaleCollections(state);
 				await client.deleteVault(state.vaultId);
 				state.hashes = {};
 				delete state.lastLsn;

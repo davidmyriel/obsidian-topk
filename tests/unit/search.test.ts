@@ -7,7 +7,7 @@ import {
 	resultsNote,
 	noteLink,
 } from '../../src/search/links';
-import { resolveHits } from '../../src/search/results';
+import { cleanQuery, MAX_QUERY_CHARS, resolveHits } from '../../src/search/results';
 import type { SearchHit } from '../../src/topk/client';
 
 describe('page links', () => {
@@ -156,5 +156,16 @@ describe('renamePaths', () => {
 		expect(renamePaths(state, 'Talkshow.pdf', 'show.pdf')).toBe(true);
 		expect(state.files['show.pdf']?.hash).toBe('h3');
 		expect(renamePaths(state, 'nope', 'x')).toBe(false);
+	});
+});
+
+describe('cleanQuery (F12)', () => {
+	it('trims, and cuts to the TopK limit by characters', () => {
+		expect(cleanQuery('  slide  ')).toBe('slide');
+		expect(Array.from(cleanQuery('a'.repeat(14_000)))).toHaveLength(MAX_QUERY_CHARS);
+		// An emoji is two UTF-16 units but one character, and is never split.
+		const emoji = cleanQuery('😀'.repeat(MAX_QUERY_CHARS + 5));
+		expect(Array.from(emoji)).toHaveLength(MAX_QUERY_CHARS);
+		expect(emoji.endsWith('😀')).toBe(true);
 	});
 });
