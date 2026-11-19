@@ -5,7 +5,7 @@ import { pdfPagePreview } from '../render/preview';
 import { TopKError } from '../topk/client';
 import { domCanvasFactory } from '../util/domCanvas';
 import { fileName, type ResolvedResult } from './links';
-import { resolveHits } from './results';
+import { cleanQuery, MAX_QUERY_CHARS, resolveHits } from './results';
 
 const FETCH_K = 20;
 const SHOW_K = 10;
@@ -41,6 +41,7 @@ export class VisualSearchModal extends Modal {
 			cls: 'topk-search-input',
 			attr: {
 				placeholder: 'Describe the page you are looking for',
+				maxlength: String(MAX_QUERY_CHARS),
 			},
 		});
 		this.statusEl = contentEl.createDiv({ cls: 'topk-search-status' });
@@ -52,7 +53,7 @@ export class VisualSearchModal extends Modal {
 		this.inputEl.addEventListener('keydown', (e) => {
 			if (e.key === 'Enter') {
 				e.preventDefault();
-				void this.search(this.inputEl.value.trim());
+				void this.search(this.inputEl.value);
 			} else if (e.key === 'ArrowDown' && this.rows.length > 0) {
 				e.preventDefault();
 				this.rows[0]?.focus();
@@ -73,7 +74,8 @@ export class VisualSearchModal extends Modal {
 		this.contentEl.empty();
 	}
 
-	async search(query: string): Promise<void> {
+	async search(text: string): Promise<void> {
+		const query = cleanQuery(text);
 		if (!query) return;
 		const id = ++this.searchId;
 		const state = await this.plugin.stateStore.load();

@@ -1,5 +1,6 @@
 import { Notice, Plugin, TFile, TFolder, type TAbstractFile } from 'obsidian';
 import { ReindexScheduler } from './indexer/scheduler';
+import { purgeStaleCollections, type IndexState } from './indexer/state';
 import { sourceKind } from './render/pageSource';
 import { IndexController, IndexMaintenance, IndexStatusModal, StateStore } from './indexing';
 import { noteBaseName, resultsNote, type ResolvedResult } from './search/links';
@@ -168,8 +169,11 @@ export default class TopKVisualSearchPlugin extends Plugin {
 		return key || null;
 	}
 
-	/** A client for the current settings, or null after telling the user the key is missing. */
-	createClient(): TopKClient | null {
+	/**
+	 * A client for the current settings (or another collection), or null after telling the user
+	 * the key is missing.
+	 */
+	createClient(collection = this.settings.collection): TopKClient | null {
 		const apiKey = this.apiKey();
 		if (!apiKey) {
 			this.notifyMissingKey();
@@ -177,10 +181,29 @@ export default class TopKVisualSearchPlugin extends Plugin {
 		}
 		return new GrpcTopKClient({
 			apiKey,
-			collection: this.settings.collection,
+			collection,
 			region: this.settings.region,
 			...(this.settings.endpoint ? { endpoint: this.settings.endpoint } : {}),
 		});
+	}
+
+	/** Deletes this vault's pages from collections it used before the setting changed (F11). */
+	async purgeStaleCollections(state: IndexState): Promise<void> {
+		if (!state.staleCollections?.length) return;
+		await purgeStaleCollections(
+			state,
+			async (collection, vaultId) => {
+				const client = this.createClient(collection);
+				if (!client) throw new Error('missing API key');
+				try {
+					await client.deleteVault(vaultId);
+					this.log.debug('removed pages from old collection', collection);
+				} finally {
+					client.close();
+				}
+			},
+			(s) => this.stateStore.save(s),
+		);
 	}
 
 	/** Returns a status message; throws TopKError on failure. */

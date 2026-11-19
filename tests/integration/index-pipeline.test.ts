@@ -433,16 +433,15 @@ describe('tall images', () => {
 		]);
 	});
 
-	it('fails a tall image that needs more tiles than the page limit', async () => {
+	it('skips a tall image that needs more tiles than the page limit, like a long PDF', async () => {
 		const { root, deps } = await setup();
 		await addTallScreenshot(root);
 		const summary = await runIndex(deps, { ...options, maxPagesPerFile: 2 });
-		expect(summary.failed).toEqual([
-			{
-				path: 'long-screenshot.png',
-				reason: expect.stringContaining('tiles, over the limit of 2') as unknown,
-			},
-		]);
+		expect(summary.failed).toEqual([]);
+		expect(summary.skipped).toContainEqual({
+			path: 'long-screenshot.png',
+			reason: expect.stringContaining('pages, over the limit of 2') as unknown,
+		});
 	});
 });
 

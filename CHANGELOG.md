@@ -5,6 +5,26 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- A corrupt index state file no longer orphans uploads: the vault id is also kept in the plugin's
+  settings, so re-uploads overwrite the earlier pages and **Remove my data** still reaches them.
+- Changing the **Collection** setting now cleans up: the next index deletes this vault's pages from
+  the old collection, and **Remove my data** covers old collections too. The setting saves when you
+  leave the field, not on every keystroke.
+- Pages of a file that failed partway through stay tracked, so deleting or fixing the file removes
+  them from TopK.
+- Tall images are counted by their tiles before upload, so the cost preview and progress are right.
+  A tall image over the page limit is skipped, like a long PDF.
+- A file deleted while indexing runs is no longer reported as failed.
+- Queries are limited to 4,096 characters instead of showing a TopK error.
+- A custom endpoint must use https unless it is on this computer, so the API key is never sent
+  unencrypted. A saved remote `http://` endpoint is dropped and the region's endpoint is used.
+
+### Documentation
+
+- README, BETA.md and PRIVACY.md say to run **Remove my data from TopK** before uninstalling.
+
 ## [0.1.0-beta.2] - 2026-10-30
 
 Fixes from an outside tester's review of beta 1. Existing indexes keep working. Images uploaded by

@@ -1,6 +1,7 @@
 import { pageId, type TopKClient } from '../topk/client';
 import {
 	countPages,
+	imagePageCount,
 	pageImages,
 	sourceKind,
 	type RenderEnv,
@@ -107,6 +108,10 @@ export interface IndexDeps {
 
 const errorText = (err: unknown): string => (err instanceof Error ? err.message : String(err));
 
+/** True when a read failed because the file was deleted meanwhile, which is not a failure (F16). */
+const gone = (reader: VaultReader, path: string): boolean =>
+	!reader.list().some((f) => f.path === path);
+
 /** Scans, hashes changed files and counts pages. Uploads nothing and does not touch TopK. */
 export async function planIndex(
 	deps: Pick<IndexDeps, 'reader' | 'env' | 'state' | 'onProgress' | 'signal'>,
@@ -121,6 +126,8 @@ export async function planIndex(
 
 	const files: Record<string, FileStamp> = {};
 	const failed: IndexPlan['failed'] = [];
+	// Image page counts taken while hashing, so an image is not read a second time to count.
+	const imagePages = new Map<string, number>();
 	for (const [i, file] of candidates.entries()) {
 		if (deps.signal?.aborted) break;
 		deps.onProgress?.({
@@ -135,9 +142,12 @@ export async function planIndex(
 			continue;
 		}
 		try {
-			const hash = await sha256Hex(await reader.read(file.path));
+			const data = await reader.read(file.path);
+			const hash = await sha256Hex(data);
 			files[file.path] = { hash, size: file.size, mtime: file.mtime };
+			if (sourceKind(file.extension) === 'image') imagePages.set(hash, imagePageCount(data));
 		} catch (err) {
+			if (gone(reader, file.path)) continue; // deleted while scanning: treat as deleted
 			// Keep the last known hash, so a file that could not be read is not treated as deleted.
 			if (known) files[file.path] = known;
 			failed.push({ path: file.path, reason: errorText(err) });
@@ -166,10 +176,16 @@ export async function planIndex(
 		let pageCount = entry?.pageCount ?? 0;
 		if (!entry || entry.status !== 'skipped') {
 			try {
-				// Images are one page; only PDFs need reading to count.
+				// Tall images count one page per tile, so the cost preview and progress are right.
 				pageCount =
-					kind === 'image' ? 1 : await countPages(env, kind, await reader.read(path));
+					(kind === 'image' ? imagePages.get(stamp.hash) : undefined) ??
+					(await countPages(env, kind, await reader.read(path)));
 			} catch (err) {
+				if (gone(reader, path)) {
+					delete files[path];
+					seen.delete(stamp.hash); // another copy of the same content may still be indexed
+					continue;
+				}
 				failed.push({ path, reason: errorText(err), hash: stamp.hash, extension });
 				continue;
 			}
@@ -275,7 +291,10 @@ export async function runIndex(
 
 	await client.ensureCollection();
 	let done = 0;
-	deps.onProgress?.({ phase: 'uploading', done, total: plan.totalPages });
+	// The plan counts tiles from image headers; if decoding yields more, grow the total rather
+	// than show more done than planned.
+	let total = plan.totalPages;
+	deps.onProgress?.({ phase: 'uploading', done, total });
 
 	// Per-file progress: a file is indexed once it is fully rendered and every batch holding one of
 	// its pages has landed. Batches can mix pages from several files.
@@ -325,6 +344,13 @@ export async function runIndex(
 				if (!job) continue;
 				job.ids.push(page.id);
 				job.outstanding--;
+				const entry = state.hashes[job.item.hash];
+				if (job.failed && entry) {
+					// Pages of a failed file can land after it failed. Track them, so deleting or
+					// changing the file removes them from TopK (beta 1 F3).
+					entry.ids = [...job.ids];
+					void save();
+				}
 				finishIfDone(job);
 			}
 		},
@@ -357,10 +383,11 @@ export async function runIndex(
 			jobs.set(item.hash, job);
 			if (uploaded.size > 0) {
 				done += uploaded.size;
+				total = Math.max(total, done);
 				deps.onProgress?.({
 					phase: 'uploading',
 					done,
-					total: plan.totalPages,
+					total,
 					path: item.path,
 				});
 			}
@@ -383,10 +410,11 @@ export async function runIndex(
 						kind: item.kind === 'pdf' ? 'pdf_page' : img.tiled ? 'image_tile' : 'image',
 						image: { format: img.format, bytes: img.bytes },
 					});
+					total = Math.max(total, ++done);
 					deps.onProgress?.({
 						phase: 'uploading',
-						done: ++done,
-						total: plan.totalPages,
+						done,
+						total,
 						path: item.path,
 					});
 					if (deps.signal?.aborted) break;
@@ -396,6 +424,14 @@ export async function runIndex(
 				finishIfDone(job);
 			} catch (err) {
 				if (err === uploader.error) throw err;
+				if (gone(deps.reader, item.path)) {
+					// Deleted mid-run. Pages that landed stay tracked as partial: the next run
+					// deletes them, or finishes the upload if a copy is still in the vault.
+					delete state.files[item.path];
+					record(job, 'partial', 'deleted during indexing');
+					void save();
+					continue;
+				}
 				job.failed = true;
 				record(job, 'failed', errorText(err));
 				summary.failed.push({ path: item.path, reason: errorText(err) });

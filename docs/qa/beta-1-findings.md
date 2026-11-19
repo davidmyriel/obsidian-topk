@@ -11,18 +11,16 @@ non-Latin handwriting) are not reported.
 
 ## How to run the reproductions
 
-Each committed test asserts the **expected** behaviour, so it fails while the bug exists.
-
-```bash
-npx vitest run --project qa
-```
+The Node reproductions now pass and live in `tests/integration/beta-1-regressions.test.ts`, which
+runs with `npm test`. References below to `tests/qa/beta-1-findings.test.ts` point to that file.
+The e2e reproductions are kept as written:
 
 ```bash
 npm run build && OBSIDIAN_VERSIONS=latest npx wdio run ./wdio.conf.mts --spec tests/e2e/qa/links.qa.ts --spec tests/e2e/qa/stale-paths.qa.ts --spec tests/e2e/qa/maintenance-race.qa.ts
 ```
 
 The e2e files end in `.qa.ts`, not `.e2e.ts`, so the normal `npm run test:e2e` suite does not pick
-them up. The `qa` vitest project is separate from `npm test`, which still passes (128 tests).
+them up.
 
 ## Findings, by severity
 
@@ -390,19 +388,19 @@ F4 were removed: F1 now indexes the misnamed image instead of failing it, and th
 the plugin layer (`src/indexing.ts`), which the Node test bypassed. Both are covered by the regular
 suite. The e2e specs for F7–F10 were not rerun.
 
-**Fix before v1.0.0** (Stage 3, before the repo goes public):
+**Fixed for v1.0.0** (unreleased; see CHANGELOG):
 
-| #   | Why before launch                                                                  | Repro        |
-| --- | ---------------------------------------------------------------------------------- | ------------ |
-| F5  | "Remove my data" misses earlier uploads after a corrupt state file                 | fails (Node) |
-| F3  | Pages stay in TopK untracked after a failed render                                 | fails (Node) |
-| F11 | Old collection keeps its pages, and "Remove my data" no longer reaches them        | none         |
-| F6  | Cost preview undercounts tall images, and progress shows done > total              | fails (Node) |
-| F17 | API key sent in cleartext to a remote `http://` endpoint without a warning         | none         |
-| F12 | Pasting a long paragraph shows a raw TopK error                                    | none         |
-| F16 | A file deleted mid-run is reported as failed                                       | none         |
-| D2  | Say to run "Remove my data" before uninstalling, and not to copy the plugin folder | n/a          |
-| D3  | Collection setting text promises a re-index that does not happen                   | n/a          |
+| #   | Fix                                                                                              |
+| --- | ------------------------------------------------------------------------------------------------ |
+| F5  | The vault id and key are also kept in `data.json`, so a corrupt state file keeps them            |
+| F3  | Pages of a failed file that land after it failed are tracked, so a delete or change removes them |
+| F11 | The old collection is remembered; the next run (or "Remove my data") deletes its pages           |
+| F6  | Planning reads image headers and counts one page per tile; over-limit tall images are skipped    |
+| F17 | A custom endpoint must be https unless it is `localhost`, `127.0.0.1` or `[::1]`                 |
+| F12 | Queries are limited to 4,096 characters                                                          |
+| F16 | A file deleted during a run is treated as deleted, not failed                                    |
+| D2  | README, BETA.md and PRIVACY.md say to run "Remove my data" before uninstalling                   |
+| D3  | The collection setting saves when the field loses focus and describes what a change does         |
 
 **Deferred to Stage 4:** F14 (identical files in two folders open the first path only) and F15
 (empty files share a hash). Both are cosmetic and lose no data.

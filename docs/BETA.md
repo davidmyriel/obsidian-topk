@@ -48,6 +48,9 @@ versions.
 After that, the index updates itself when files change. See the README for all commands and
 [PRIVACY.md](PRIVACY.md) for what leaves your device.
 
+To stop testing, run **Remove my data from TopK** before you uninstall the plugin. The vault id it
+needs lives in the plugin folder, which uninstalling deletes.
+
 ## Reporting
 
 Use the issue templates: **Bug report** or **Beta feedback**. Include the output of

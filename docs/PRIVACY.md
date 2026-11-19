@@ -25,7 +25,9 @@ for example `Private/**`.
 ## Where it goes
 
 The plugin talks only to `https://<region>.api.topk.io` for the region you pick in settings, or to a
-custom endpoint if you set one. Your data lives in your own TopK project and collection.
+custom endpoint if you set one. A custom endpoint must use https, except on this computer
+(`localhost`), so the API key is never sent unencrypted. Your data lives in your own TopK project
+and collection.
 
 ## Removing your data
 
@@ -34,4 +36,16 @@ custom endpoint if you set one. Your data lives in your own TopK project and col
 - Deleting or excluding a file removes its pages from TopK the next time the vault is indexed.
 - **Clear local index** forgets what was indexed on this device; the next index replaces this
   vault's pages in TopK.
+- Changing the **Collection** setting moves this vault's pages: the next index uploads them to the
+  new collection and deletes them from the old one.
 - Deleting the collection in the TopK console removes everything in it, from every vault.
+
+### Before you uninstall or copy a vault
+
+The plugin finds this vault's pages in TopK by a vault id stored in the plugin folder
+(`.obsidian/plugins/topk-visual-search/`). Uninstalling the plugin deletes that folder, and the
+pages it uploaded can then only be removed by deleting them in the TopK console. So:
+
+- Run **Remove my data from TopK** before you uninstall the plugin.
+- Don't copy the plugin folder into another vault. A copied vault is detected and gets its own id,
+  but it then re-uploads its pages, which costs credits.
