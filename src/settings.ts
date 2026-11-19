@@ -46,26 +46,26 @@ export class TopKSettingTab extends PluginSettingTab {
 				});
 			});
 
-		const collection = new Setting(containerEl)
-			.setName('Collection')
-			.setDesc(
-				'Created on first index. Changing it re-indexes the vault into the new collection.',
-			);
-		collection.addText((t) =>
-			t.setValue(s.collection).onChange(async (value) => {
-				const error = collectionNameError(value.trim());
+		// Saved when the field loses focus, not on every keystroke, so a half-typed name never
+		// becomes the collection (beta 1 F11).
+		const collectionDesc =
+			'Created on first index. After a change, the next index uploads the vault to the new collection and deletes its pages from the old one.';
+		const collection = new Setting(containerEl).setName('Collection').setDesc(collectionDesc);
+		collection.addText((t) => {
+			const check = (): string | null => {
+				const error = collectionNameError(t.getValue().trim());
 				collection.descEl.toggleClass('mod-warning', error !== null);
-				if (error) {
-					collection.setDesc(error);
-					return;
-				}
-				collection.setDesc(
-					'Created on first index. Changing it re-indexes the vault into the new collection.',
-				);
-				s.collection = value.trim();
-				await save();
-			}),
-		);
+				collection.setDesc(error ?? collectionDesc);
+				return error;
+			};
+			t.setValue(s.collection).onChange(() => void check());
+			t.inputEl.addEventListener('change', () => {
+				const name = t.getValue().trim();
+				if (check() !== null || name === s.collection) return;
+				s.collection = name;
+				void save();
+			});
+		});
 
 		new Setting(containerEl)
 			.setName('Test connection')

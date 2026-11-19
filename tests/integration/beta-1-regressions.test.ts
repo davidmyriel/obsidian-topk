@@ -1,5 +1,4 @@
-// Reproductions for docs/qa/beta-1-findings.md. Each test asserts the behaviour we expect, so it
-// FAILS while the bug exists. Run with: npx vitest run --project qa
+// Regression tests for the beta 1 outside-tester findings (docs/qa/beta-1-findings.md).
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createCanvas } from '@napi-rs/canvas';
@@ -11,7 +10,7 @@ import {
 	type IndexOptions,
 	type IndexProgress,
 } from '../../src/indexer/indexer';
-import { emptyState, parseState } from '../../src/indexer/state';
+import { emptyState, loadState } from '../../src/indexer/state';
 import { prepareImage } from '../../src/render/pageSource';
 import type { PdfJsLike } from '../../src/render/pdfRenderer';
 import { FakeTopK } from '../../src/topk/fake';
@@ -104,7 +103,8 @@ describe('F5: a corrupt index-state.json loses the vault id', () => {
 		const state = emptyState('original-id', 'c');
 		await runIndex({ reader, client, env: nodeRenderEnv, state, save: noSave }, options);
 		// A crash during adapter.write leaves truncated JSON; JSON.parse fails and load() passes null.
-		const reloaded = parseState(null, () => 'fresh-id', 'c');
+		// The vault id survives in data.json.
+		const reloaded = loadState(null, { vaultId: state.vaultId }, () => 'fresh-id', 'c');
 		await runIndex(
 			{ reader, client, env: nodeRenderEnv, state: reloaded, save: noSave },
 			options,
@@ -142,5 +142,40 @@ describe('F6: tall images break the page count used for progress and cost', () =
 		const worst = seen.filter((p) => p.phase === 'uploading').at(-1);
 		expect(client.calls.upsertedPages).toBe(plan.totalPages); // the cost estimate's page count
 		expect(worst?.done).toBeLessThanOrEqual(worst?.total ?? 0);
+	});
+});
+
+describe('F16: a file deleted during a run', () => {
+	it('is treated as deleted, not failed, and its landed pages are removed next run', async () => {
+		const { root, reader } = vault();
+		const client = new FakeTopK();
+		const state = emptyState('v1', 'c');
+		const plan = await planIndex({ reader, env: nodeRenderEnv, state }, options);
+		const talk = plan.work.find((w) => w.path.endsWith('talk.pdf'));
+		expect(talk).toBeDefined();
+		// The file disappears after planning, before its pages are rendered.
+		const read = reader.read.bind(reader);
+		reader.read = (path) => {
+			if (path === talk?.path) {
+				rmSync(join(root, path));
+				return Promise.reject(new Error(`${path} no longer exists`));
+			}
+			return read(path);
+		};
+		const summary = await runIndex(
+			{ reader, client, env: nodeRenderEnv, state, save: noSave },
+			options,
+			plan,
+		);
+		expect(summary.failed).toEqual([]);
+		expect(state.files[talk?.path ?? '']).toBeUndefined();
+		const next = await runIndex(
+			{ reader, client, env: nodeRenderEnv, state, save: noSave },
+			options,
+		);
+		expect(next.failed).toEqual([]);
+		expect(state.hashes[talk?.hash ?? '']).toBeUndefined();
+		const tracked = new Set(Object.values(state.hashes).flatMap((h) => h.ids));
+		expect([...client.docs.keys()].filter((id) => !tracked.has(id))).toEqual([]);
 	});
 });

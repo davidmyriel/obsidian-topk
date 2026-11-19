@@ -3,7 +3,9 @@ import { compileFilter, globToRegExp, parseList } from '../../src/indexer/globs'
 import {
 	emptyState,
 	orphanedHashes,
+	loadState,
 	parseState,
+	purgeStaleCollections,
 	pathsByHash,
 	resetUploads,
 	STATE_VERSION,
@@ -99,6 +101,52 @@ describe('index state', () => {
 		expect(state.hashes).toEqual({});
 		expect(state.lastLsn).toBeUndefined();
 		expect(Object.keys(state.files)).toHaveLength(2);
+	});
+
+	it('remembers the old collection for cleanup and purges the new one (F11)', () => {
+		const state = parseState(stored, () => 'new', 'c2');
+		expect(state.staleCollections).toEqual(['c1']);
+		expect(state.needsPurge).toBe(true);
+		// Switching on keeps both old ones; switching back drops the current one from the list.
+		const again = parseState(JSON.parse(JSON.stringify(state)), () => 'new', 'c3');
+		expect(again.staleCollections).toEqual(['c1', 'c2']);
+		const back = parseState(JSON.parse(JSON.stringify(again)), () => 'new', 'c1');
+		expect(back.staleCollections).toEqual(['c2', 'c3']);
+		// Same collection: nothing stale, nothing to purge.
+		expect(parseState(stored, () => 'new', 'c1').staleCollections).toBeUndefined();
+	});
+
+	it('purges stale collections one by one, saving after each (F11)', async () => {
+		const state = parseState(stored, () => 'new', 'c3');
+		state.staleCollections = ['c1', 'c2'];
+		const deleted: string[] = [];
+		const saved: (string[] | undefined)[] = [];
+		await purgeStaleCollections(
+			state,
+			(c, vaultId) => {
+				deleted.push(`${c}:${vaultId}`);
+				return Promise.resolve();
+			},
+			(s) => {
+				saved.push(s.staleCollections && [...s.staleCollections]);
+				return Promise.resolve();
+			},
+		);
+		expect(deleted).toEqual(['c1:v1', 'c2:v1']);
+		expect(saved).toEqual([['c2'], undefined]);
+		expect(state.staleCollections).toBeUndefined();
+	});
+
+	it('keeps the vault id from settings when the state file is unreadable (F5)', () => {
+		const backup = { vaultId: 'v1', vaultKey: 'k1' };
+		expect(loadState(null, backup, () => 'new', 'c1')).toMatchObject({
+			vaultId: 'v1',
+			vaultKey: 'k1',
+		});
+		expect(loadState({ ...stored, version: 99 }, backup, () => 'new', 'c1').vaultId).toBe('v1');
+		expect(loadState(null, null, () => 'new', 'c1').vaultId).toBe('new');
+		// A readable state file wins over the backup.
+		expect(loadState(stored, { vaultId: 'other' }, () => 'new', 'c1').vaultId).toBe('v1');
 	});
 
 	it('migrates version 1 state: keeps vault and files, forgets uploads, asks for a purge', () => {

@@ -33,6 +33,9 @@ export interface Settings {
 	debugLog: boolean;
 	/** Set once the user has confirmed the first-run upload dialog. */
 	uploadConsent: boolean;
+	/** Copy of the index state's vault id and key, so a corrupt state file keeps them (beta 1 F5). */
+	vaultId: string;
+	vaultKey: string;
 }
 
 export function defaultSettings(configDir: string): Settings {
@@ -49,6 +52,8 @@ export function defaultSettings(configDir: string): Settings {
 		autoIndex: true,
 		debugLog: false,
 		uploadConsent: false,
+		vaultId: '',
+		vaultKey: '',
 	};
 }
 
@@ -62,12 +67,17 @@ export function collectionNameError(name: string): string | null {
 	return null;
 }
 
+const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]']);
+
 export function endpointError(endpoint: string): string | null {
 	if (!endpoint) return null;
 	try {
 		const url = new URL(endpoint);
 		if (url.protocol !== 'https:' && url.protocol !== 'http:')
 			return 'Use an http or https URL.';
+		// The API key travels in a header, so plain http is only allowed on this computer (F17).
+		if (url.protocol === 'http:' && !LOOPBACK.has(url.hostname))
+			return 'Use https. Plain http would send your API key unencrypted.';
 		if (url.pathname !== '/' || url.search || url.hash)
 			return 'Enter only the origin, e.g. https://host:443.';
 		return null;
@@ -114,5 +124,7 @@ export function loadSettings(raw: unknown, configDir: string): Settings {
 	if (typeof raw.autoIndex === 'boolean') s.autoIndex = raw.autoIndex;
 	if (typeof raw.debugLog === 'boolean') s.debugLog = raw.debugLog;
 	if (typeof raw.uploadConsent === 'boolean') s.uploadConsent = raw.uploadConsent;
+	if (typeof raw.vaultId === 'string') s.vaultId = raw.vaultId;
+	if (typeof raw.vaultKey === 'string') s.vaultKey = raw.vaultKey;
 	return s;
 }
