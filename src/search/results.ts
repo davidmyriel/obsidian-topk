@@ -33,3 +33,14 @@ export function resolveHits(
 	}
 	return out;
 }
+
+/** TopK rejects longer query text (beta 1 F12). */
+export const MAX_QUERY_CHARS = 4096;
+
+/** The query trimmed and cut to TopK's limit, counting characters rather than UTF-16 units. */
+export function cleanQuery(text: string): string {
+	const chars = Array.from(text.trim());
+	return chars.length > MAX_QUERY_CHARS
+		? chars.slice(0, MAX_QUERY_CHARS).join('').trim()
+		: text.trim();
+}

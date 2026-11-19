@@ -40,6 +40,9 @@ The plugin connects only to the TopK endpoint for your region. It uploads an ima
 which TopK stores in your collection so it can be searched, and the text of your queries. File names
 and folder paths never leave your device. There is no telemetry. See [docs/PRIVACY.md](docs/PRIVACY.md).
 
+Run **Remove my data from TopK** before uninstalling: the id that finds this vault's pages lives in
+the plugin folder, which uninstalling deletes.
+
 ## Install the beta
 
 Beta builds install through BRAT; see [docs/BETA.md](docs/BETA.md).

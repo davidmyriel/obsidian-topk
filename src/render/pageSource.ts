@@ -1,3 +1,4 @@
+import { imageSize } from './imageSize';
 import { tileRects } from './tiles';
 import {
 	countPdfPages,
@@ -65,12 +66,21 @@ export function sourceKind(extension: string): SourceKind | null {
 	return ext in MIME ? 'image' : null;
 }
 
+/**
+ * Pages an image uploads: one per tile for a tall image. Unknown headers count as one page; the
+ * decoder decides later.
+ */
+export function imagePageCount(data: Uint8Array): number {
+	const size = imageSize(data);
+	return size ? tileRects(size.width, size.height).length : 1;
+}
+
 export async function countPages(
 	env: RenderEnv,
 	kind: SourceKind,
 	data: Uint8Array,
 ): Promise<number> {
-	if (kind === 'image') return 1;
+	if (kind === 'image') return imagePageCount(data);
 	return countPdfPages(await env.loadPdfJs(), data, env.documentOptions);
 }
 

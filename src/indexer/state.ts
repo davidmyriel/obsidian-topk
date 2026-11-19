@@ -46,6 +46,17 @@ export interface IndexState {
 	 * the state file along; a different key means "copy", so it must not share the vault id.
 	 */
 	vaultKey?: string;
+	/**
+	 * Collections this vault uploaded to before the collection setting changed. The next run
+	 * deletes this vault's pages from each, then forgets it (beta 1 F11).
+	 */
+	staleCollections?: string[];
+}
+
+/** The vault id and key, also kept in data.json so a corrupt state file does not lose them. */
+export interface VaultIdentity {
+	vaultId: string;
+	vaultKey?: string;
 }
 
 export function emptyState(vaultId: string, collection: string): IndexState {
@@ -121,14 +132,60 @@ export function parseState(raw: unknown, newVaultId: () => string, collection: s
 	};
 	if (raw.needsPurge === true) state.needsPurge = true;
 	if (typeof raw.vaultKey === 'string' && raw.vaultKey) state.vaultKey = raw.vaultKey;
-	// Hashes uploaded to another collection are not searchable in this one.
+	const stale = new Set(
+		Array.isArray(raw.staleCollections)
+			? raw.staleCollections.filter((c): c is string => typeof c === 'string' && !!c)
+			: [],
+	);
 	if (raw.collection !== collection) {
+		// Hashes uploaded to another collection are not searchable in this one. Its pages are
+		// deleted on the next run, and this collection is purged before everything is re-uploaded,
+		// in case it holds pages from an earlier switch.
+		if (typeof raw.collection === 'string' && raw.collection) stale.add(raw.collection);
 		state.hashes = {};
-		delete state.needsPurge;
+		state.needsPurge = true;
 	} else if (typeof raw.lastLsn === 'string') {
 		state.lastLsn = raw.lastLsn;
 	}
+	stale.delete(collection);
+	if (stale.size > 0) state.staleCollections = [...stale].sort();
 	return state;
+}
+
+/**
+ * parseState, keeping the vault id saved in settings when the state file is missing, corrupt or
+ * from another version (beta 1 F5). The same id means re-uploads overwrite the earlier pages and
+ * "Remove my data" still reaches them.
+ */
+export function loadState(
+	raw: unknown,
+	backup: VaultIdentity | null,
+	newVaultId: () => string,
+	collection: string,
+): IndexState {
+	const state = parseState(raw, () => backup?.vaultId || newVaultId(), collection);
+	if (backup?.vaultKey && state.vaultId === backup.vaultId && state.vaultKey === undefined) {
+		state.vaultKey = backup.vaultKey;
+	}
+	return state;
+}
+
+/**
+ * Deletes this vault's pages from collections it no longer uses (beta 1 F11), saving after each
+ * so an interrupted cleanup resumes. A missing collection counts as already clean.
+ */
+export async function purgeStaleCollections(
+	state: IndexState,
+	deleteFrom: (collection: string, vaultId: string) => Promise<void>,
+	save: (state: IndexState) => Promise<void>,
+): Promise<void> {
+	for (const collection of [...(state.staleCollections ?? [])]) {
+		await deleteFrom(collection, state.vaultId);
+		const rest = (state.staleCollections ?? []).filter((c) => c !== collection);
+		if (rest.length > 0) state.staleCollections = rest;
+		else delete state.staleCollections;
+		await save(state);
+	}
 }
 
 /** Current vault paths for each content hash, sorted. Identical files share one hash. */
