@@ -5,6 +5,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- A vault with notes search on and no PDFs or images can now search: the search no longer fails
+  on a page collection that doesn't exist yet.
+- Notes stay up to date in the background even if you never confirmed a page upload. Declining the
+  page upload dialog still indexes notes when notes search is on.
+- A quoted phrase only marks a note "exact match" when its words appear in that order, as for pages.
+- **Save results as note** now includes note results, linked at their heading, and works when only
+  notes matched.
+- A note with more than 200 sections is no longer silently cut short: the notice after indexing and
+  **Show index status** list it as indexed in part.
+
+### Removed
+
+- Two unused exports (`SUPPORTED_EXTENSIONS`, `pageLinkText`), and a comment that no longer
+  described how images are uploaded.
+
 ## [2.1.0]
 
 ### Added

@@ -1,19 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { emptyState } from '../../src/indexer/state';
-import {
-	fileName,
-	noteBaseName,
-	pageLinkText,
-	resultsNote,
-	noteLink,
-} from '../../src/search/links';
+import { fileName, noteBaseName, resultsNote, noteLink } from '../../src/search/links';
 import { cleanQuery, MAX_QUERY_CHARS, resolveHits } from '../../src/search/results';
 import type { SearchHit } from '../../src/topk/client';
 
 describe('page links', () => {
 	it('links PDFs to their page and images to the file', () => {
-		expect(pageLinkText('Talks/talk.pdf', 15, 'pdf_page')).toBe('Talks/talk.pdf#page=15');
-		expect(pageLinkText('img/a b.png', 1, 'image')).toBe('img/a b.png');
+		expect(noteLink({ path: 'img/a b.png', page: 1, kind: 'image' }, 'V')).toBe(
+			'[[img/a b.png]]',
+		);
 		expect(noteLink({ path: 'talk.pdf', page: 3, kind: 'pdf_page' }, 'V')).toBe(
 			'[[talk.pdf#page=3]]',
 		);
@@ -167,5 +162,28 @@ describe('cleanQuery (F12)', () => {
 		const emoji = cleanQuery('😀'.repeat(MAX_QUERY_CHARS + 5));
 		expect(Array.from(emoji)).toHaveLength(MAX_QUERY_CHARS);
 		expect(emoji.endsWith('😀')).toBe(true);
+	});
+});
+
+describe('results note with notes (audit A05)', () => {
+	it('lists notes at their heading before the pages, and works with notes only', () => {
+		const date = new Date('2026-11-20T12:00:00Z');
+		const notes = [
+			{ path: 'Work/pricing.md', heading: 'Margins' },
+			{ path: 'odd [1].md', heading: 'Plan | B' },
+		];
+		const mixed = resultsNote(
+			'pricing',
+			[{ path: 'deck.pdf', page: 2, kind: 'pdf_page', score: 1, contentHash: 'h' }],
+			date,
+			'V',
+			notes,
+		);
+		expect(mixed).toContain('## Notes\n\n1. [[Work/pricing#Margins]]');
+		expect(mixed).toContain('2. [odd \\[1\\]](odd%20%5B1%5D.md)'); // unsafe heading dropped
+		expect(mixed.indexOf('## Notes')).toBeLessThan(mixed.indexOf('## Pages'));
+		const notesOnly = resultsNote('pricing', [], date, 'V', notes);
+		expect(notesOnly).toContain('[[Work/pricing#Margins]]');
+		expect(notesOnly).not.toContain('## Pages');
 	});
 });

@@ -39,6 +39,8 @@ export interface NoteHit {
 	contentHash: string;
 	chunk: number;
 	score: number;
+	/** The section's accent-folded text, returned by exact-term searches to check phrase order. */
+	text?: string;
 }
 
 export interface NotesClient {
@@ -148,6 +150,7 @@ export function noteSearchRequest(
 						chunk: sel('chunk'),
 						...(hybrid
 							? {
+									[NOTE_KEYWORDS_FIELD]: sel(NOTE_KEYWORDS_FIELD),
 									text_score: {
 										expr: {
 											case: 'functionExpr' as const,
@@ -275,7 +278,8 @@ export function parseNoteHit(doc: Document): NoteHit | null {
 	const chunk = n(f.chunk);
 	const score = n(f.score);
 	if (!id || !contentHash || chunk === undefined || score === undefined) return null;
-	return { id, contentHash, chunk, score };
+	const text = s(f[NOTE_KEYWORDS_FIELD]);
+	return { id, contentHash, chunk, score, ...(text !== undefined ? { text } : {}) };
 }
 
 /** Upserts are batched to stay well inside TopK's request size. */
@@ -462,6 +466,7 @@ export class FakeNotesClient implements NotesClient {
 					contentHash: d.contentHash,
 					chunk: d.chunk,
 					score: words(d.text).filter((w) => q.has(w)).length,
+					...(exact.length > 0 ? { text: d.keywords } : {}),
 				}))
 				.filter((h) => h.score > 0 || exact.length > 0)
 				.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))

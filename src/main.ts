@@ -158,7 +158,7 @@ export default class TopKVisualSearchPlugin extends Plugin {
 	/** Writes the last search's results as a note of links and opens it. */
 	async saveResultsNote(): Promise<void> {
 		const last = this.lastSearch;
-		if (!last || last.results.length === 0) {
+		if (!last || (last.results.length === 0 && (last.notes ?? []).length === 0)) {
 			new Notice('Run a visual search with results first.');
 			return;
 		}
@@ -167,7 +167,13 @@ export default class TopKVisualSearchPlugin extends Plugin {
 		for (let i = 2; this.app.vault.getAbstractFileByPath(path); i++) path = `${base} ${i}.md`;
 		const file = await this.app.vault.create(
 			path,
-			resultsNote(last.query, last.results, new Date(), this.app.vault.getName()),
+			resultsNote(
+				last.query,
+				last.results,
+				new Date(),
+				this.app.vault.getName(),
+				last.notes ?? [],
+			),
 		);
 		await this.app.workspace.getLeaf(false).openFile(file);
 	}

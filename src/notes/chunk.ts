@@ -43,11 +43,18 @@ function splitLong(text: string): string[] {
 	return out;
 }
 
+export interface ChunkedNote {
+	chunks: NoteChunk[];
+	/** True when the note had more than MAX_CHUNKS sections and the rest was left out. */
+	truncated: boolean;
+}
+
 /**
  * Sections of a note: frontmatter dropped, split at headings (outside code fences), long sections
- * split at paragraphs, short ones joined with the next, at most MAX_CHUNKS. Empty notes give [].
+ * split at paragraphs, short ones joined with the next, at most MAX_CHUNKS (`truncated` says when
+ * the rest was left out). Empty notes give no chunks.
  */
-export function chunkNote(markdown: string): NoteChunk[] {
+export function chunkNote(markdown: string): ChunkedNote {
 	const lines = stripFrontmatter(markdown.replace(/\r\n?/g, '\n')).split('\n');
 	const sections: NoteChunk[] = [];
 	let heading = '';
@@ -93,9 +100,9 @@ export function chunkNote(markdown: string): NoteChunk[] {
 	const out: NoteChunk[] = [];
 	for (const s of joined) {
 		for (const text of splitLong(s.text)) {
-			if (out.length >= MAX_CHUNKS) return out;
+			if (out.length >= MAX_CHUNKS) return { chunks: out, truncated: true };
 			out.push({ heading: s.heading, text });
 		}
 	}
-	return out;
+	return { chunks: out, truncated: false };
 }

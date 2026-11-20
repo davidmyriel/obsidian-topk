@@ -17,7 +17,7 @@ const para = (word: string, n: number): string => `${word} `.repeat(n).trim();
 describe('chunkNote', () => {
 	it('drops frontmatter and splits at headings, keeping each heading', () => {
 		const md = `---\ntags: [x]\n---\n# Pricing\n${para('price', 60)}\n\n## Margins\n${para('margin', 60)}`;
-		const chunks = chunkNote(md);
+		const { chunks } = chunkNote(md);
 		expect(chunks.map((c) => c.heading)).toEqual(['Pricing', 'Margins']);
 		expect(chunks[0]?.text.startsWith('# Pricing')).toBe(true);
 		expect(chunks.some((c) => c.text.includes('tags:'))).toBe(false);
@@ -25,17 +25,20 @@ describe('chunkNote', () => {
 
 	it('joins short sections, splits long ones and ignores # inside code fences', () => {
 		const md = `# A\nshort\n# B\nalso short\n# C\n${para('word', 900)}\n\n\`\`\`\n# not a heading\n\`\`\``;
-		const chunks = chunkNote(md);
+		const { chunks } = chunkNote(md);
 		expect(chunks[0]?.heading).toBe('A'); // A and B joined, named after A
 		expect(chunks.every((c) => c.text.length <= MAX_CHUNK_CHARS)).toBe(true);
 		expect(chunks.some((c) => c.heading === 'not a heading')).toBe(false);
-		expect(chunkNote('')).toEqual([]);
-		expect(chunkNote('---\na: 1\n---\n')).toEqual([]);
+		expect(chunkNote('')).toEqual({ chunks: [], truncated: false });
+		expect(chunkNote('---\na: 1\n---\n').chunks).toEqual([]);
 	});
 
 	it(`caps a note at ${MAX_CHUNKS} chunks`, () => {
 		const md = Array.from({ length: 300 }, (_, i) => `# H${i}\n${para('x', 120)}`).join('\n');
-		expect(chunkNote(md)).toHaveLength(MAX_CHUNKS);
+		const { chunks, truncated } = chunkNote(md);
+		expect(chunks).toHaveLength(MAX_CHUNKS);
+		expect(truncated).toBe(true); // reported, not silent (audit A06)
+		expect(chunkNote(`# H\n${para('x', 100)}`).truncated).toBe(false);
 	});
 });
 
@@ -171,5 +174,35 @@ describe('notes settings and requests', () => {
 		expect(hybrid[2]?.stage.case === 'filter' && hybrid[2].stage.value.expr?.expr.case).toBe(
 			'textExpr',
 		);
+	});
+});
+
+describe('audit fixes', () => {
+	it('records a note with too many sections as indexed in part (A06)', async () => {
+		const reader = new MemoryNotes();
+		reader.set(
+			'long.md',
+			Array.from({ length: 300 }, (_, i) => `# H${i}\n${para('x', 120)}`).join('\n'),
+		);
+		const client = new FakeNotesClient();
+		const state = emptyNotesState('v', 'c-notes');
+		const summary = await index(reader, client, state);
+		expect(summary.truncated).toEqual(['long.md']);
+		expect(Object.values(state.notes)[0]).toMatchObject({ status: 'indexed', truncated: true });
+		expect(client.docs.size).toBe(MAX_CHUNKS);
+	});
+
+	it('checks phrase order before marking a note an exact match (A04)', async () => {
+		const reader = new MemoryNotes();
+		reader.set('rrf.md', `# Fusion\n${para('we use reciprocal rank fusion here', 8)}`);
+		reader.set('shuffled.md', `# Lists\n${para('fusion of rank lists is not reciprocal', 8)}`);
+		const client = new FakeNotesClient();
+		const state = emptyNotesState('v', 'c-notes');
+		await index(reader, client, state);
+		const r = await searchNotes(client, '"reciprocal rank fusion"', state, {
+			k: 5,
+			fetchK: 20,
+		});
+		expect(r.filter((x) => x.exactMatch).map((x) => x.path)).toEqual(['rrf.md']);
 	});
 });

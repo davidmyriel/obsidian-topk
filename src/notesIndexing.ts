@@ -10,6 +10,7 @@ import {
 } from './notes/indexer';
 import { renamePaths } from './indexer/state';
 import { notesCollection } from './topk/notes';
+import { MAX_CHUNKS } from './notes/chunk';
 
 // Obsidian side of notes search (ADR-007): the notes state file, the reader, and one notes run.
 
@@ -157,6 +158,9 @@ export function notesSummaryText(s: NotesSummary): string {
 		s.notesIndexed > 0 ? `${s.notesIndexed} notes indexed` : null,
 		s.chunksDeleted > 0 ? `${s.chunksDeleted} note sections removed` : null,
 		s.failed.length > 0 ? `${s.failed.length} notes failed` : null,
+		s.truncated.length > 0
+			? `${s.truncated.length} too long, only their first ${MAX_CHUNKS} sections are searchable`
+			: null,
 	].filter(Boolean);
 	return parts.length > 0 ? `Notes: ${parts.join(', ')}.` : '';
 }

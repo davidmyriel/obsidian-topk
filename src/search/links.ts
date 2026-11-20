@@ -14,11 +14,6 @@ export interface ResolvedResult {
 	exactMatch?: boolean;
 }
 
-/** Link text that opens a PDF at its page, e.g. "Talks/talk.pdf#page=15". Images link to the file. */
-export function pageLinkText(path: string, page: number, kind: PageKind): string {
-	return kind === 'pdf_page' ? `${path}#page=${page}` : path;
-}
-
 /**
  * A link for a note (beta 1 F7). Ordinary names get a wikilink such as [[Talks/talk.pdf#page=15]].
  * Inside a wikilink `|` starts an alias, so names with `|` or brackets get a Markdown link with the
@@ -54,22 +49,54 @@ export function fileName(path: string): string {
 	return path.slice(path.lastIndexOf('/') + 1);
 }
 
-/** Note body listing results as links, best first. */
+/**
+ * A link to a note result, at its heading when the heading can be part of a link (ADR-007).
+ * Names with `#` get an obsidian://open link (no heading), names with `|` or brackets a Markdown
+ * link, as for pages (beta 1 F7).
+ */
+export function noteResultLink(note: { path: string; heading: string }, vaultName: string): string {
+	const label = escapeLabel(fileName(note.path).replace(/\.md$/i, ''));
+	const heading = note.heading && !/[[\]|#^]/.test(note.heading) ? note.heading : '';
+	if (note.path.includes('#')) {
+		return `[${label}](obsidian://open?vault=${encodeURIComponent(vaultName)}&file=${encodeURIComponent(note.path)})`;
+	}
+	if (!/[|[\]]/.test(note.path)) {
+		return `[[${note.path.replace(/\.md$/i, '')}${heading ? `#${heading}` : ''}]]`;
+	}
+	const encoded = note.path
+		.split('/')
+		.map((segment) => encodeURIComponent(segment).replace(/\(/g, '%28').replace(/\)/g, '%29'))
+		.join('/');
+	return `[${label}](${encoded}${heading ? `#${encodeURIComponent(heading)}` : ''})`;
+}
+
+/** Note body listing results as links, best first: notes (if any), then pages. */
 export function resultsNote(
 	query: string,
 	results: ResolvedResult[],
 	date: Date,
 	vaultName: string,
+	notes: { path: string; heading: string }[] = [],
 ): string {
+	const pages = results.map(
+		(r, i) =>
+			`${i + 1}. ${noteLink(r, vaultName)}${r.kind === 'pdf_page' ? ` (page ${r.page})` : ''}`,
+	);
 	const lines = [
 		`# Visual search: ${query}`,
 		'',
 		`Searched ${date.toISOString().slice(0, 10)} with TopK Visual Search.`,
 		'',
-		...results.map(
-			(r, i) =>
-				`${i + 1}. ${noteLink(r, vaultName)}${r.kind === 'pdf_page' ? ` (page ${r.page})` : ''}`,
-		),
+		...(notes.length > 0
+			? [
+					'## Notes',
+					'',
+					...notes.map((n, i) => `${i + 1}. ${noteResultLink(n, vaultName)}`),
+					'',
+					...(pages.length > 0 ? ['## Pages', ''] : []),
+				]
+			: []),
+		...pages,
 		'',
 	];
 	return lines.join('\n');

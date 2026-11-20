@@ -6,6 +6,7 @@ import { TopKError } from '../topk/client';
 import { domCanvasFactory } from '../util/domCanvas';
 import { fileName, type ResolvedResult } from './links';
 import { shortQueryWords } from './nameMatch';
+import { exactQuery } from './exact';
 import { searchNotes, type NoteResult } from './searchNotes';
 import { searchVault } from './searchVault';
 import { cleanQuery, MAX_QUERY_CHARS } from './results';
@@ -109,14 +110,17 @@ export class VisualSearchModal extends Modal {
 		try {
 			const exists = (path: string): boolean => this.app.vault.getFileByPath(path) !== null;
 			const [pages, notes] = await Promise.all([
-				searchVault(client, query, state, {
-					k: SHOW_K,
-					fetchK: FETCH_K,
-					exists,
-					...(state.lastLsn ? { requiredLsn: state.lastLsn } : {}),
-					onExactError: (err) =>
-						this.plugin.log.debug('exact search failed', String(err)),
-				}),
+				// A notes-only vault has no page collection yet, so its search would fail (audit A02).
+				hasPages
+					? searchVault(client, query, state, {
+							k: SHOW_K,
+							fetchK: FETCH_K,
+							exists,
+							...(state.lastLsn ? { requiredLsn: state.lastLsn } : {}),
+							onExactError: (err) =>
+								this.plugin.log.debug('exact search failed', String(err)),
+						})
+					: Promise.resolve({ results: [], exact: exactQuery(query), exactMatches: 0 }),
 				notesClient && notesState
 					? searchNotes(notesClient, query, notesState, {
 							k: SHOW_NOTES,
@@ -139,7 +143,7 @@ export class VisualSearchModal extends Modal {
 				exactMatches,
 			});
 			this.showResults(results, notes);
-			if (exact && exactMatches === 0) {
+			if (exact && hasPages && exactMatches === 0 && !notes.some((n) => n.exactMatch)) {
 				this.statusEl.setText(
 					`No page contains ${exact.terms.map((t) => `"${t}"`).join(', ')}. Showing the closest pages.`,
 				);

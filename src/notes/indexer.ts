@@ -16,6 +16,8 @@ export interface NoteEntry {
 	ids: string[];
 	status: 'indexed' | 'failed';
 	reason?: string;
+	/** The note had more than MAX_CHUNKS sections; only the first ones are searchable. */
+	truncated?: boolean;
 	updatedAt: number;
 }
 
@@ -81,6 +83,7 @@ export function parseNotesState(raw: unknown, vaultId: string, collection: strin
 						ids: v.ids.filter((id): id is string => typeof id === 'string'),
 						status: v.status,
 						...(typeof v.reason === 'string' ? { reason: v.reason } : {}),
+						...(v.truncated === true ? { truncated: true } : {}),
 						updatedAt: typeof v.updatedAt === 'number' ? v.updatedAt : 0,
 					};
 				}
@@ -112,6 +115,8 @@ export interface NotesSummary {
 	chunksDeleted: number;
 	unchanged: number;
 	failed: { path: string; reason: string }[];
+	/** Notes with more than MAX_CHUNKS sections, indexed only in part (audit A06). */
+	truncated: string[];
 	cancelled: boolean;
 }
 
@@ -139,6 +144,7 @@ export async function runNoteIndex(
 		chunksDeleted: 0,
 		unchanged: 0,
 		failed: [],
+		truncated: [],
 		cancelled: false,
 	};
 	const candidates = reader
@@ -199,7 +205,7 @@ export async function runNoteIndex(
 		deps.onProgress?.(i, pending.length);
 		try {
 			const text = texts.get(hash) ?? (await reader.read(path));
-			const chunks = chunkNote(text);
+			const { chunks, truncated } = chunkNote(text);
 			const docs: NoteDoc[] = chunks.map((c, n) => ({
 				id: noteId(state.vaultId, hash, n),
 				vaultId: state.vaultId,
@@ -216,8 +222,10 @@ export async function runNoteIndex(
 				headings: chunks.map((c) => c.heading),
 				ids: docs.map((d) => d.id),
 				status: 'indexed',
+				...(truncated ? { truncated: true } : {}),
 				updatedAt: now(),
 			};
+			if (truncated) summary.truncated.push(path);
 			summary.notesIndexed++;
 			summary.chunksUploaded += docs.length;
 		} catch (err) {

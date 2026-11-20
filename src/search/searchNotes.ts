@@ -1,6 +1,6 @@
 import { notePathsByHash, type NotesState } from '../notes/indexer';
 import type { NoteHit, NotesClient } from '../topk/notes';
-import { exactQuery } from './exact';
+import { containsPhrases, exactQuery } from './exact';
 
 // Notes search (ADR-007): semantic similarity on note text, plus TopK's one-query hybrid for
 // exact parts (quotes and codes). One result per note: its best section.
@@ -69,7 +69,14 @@ export async function searchNotes(
 			});
 		}
 	};
-	add(exactHits, true);
+	// TopK matches a quoted phrase's words in any order (Spike F), so check the order here, as
+	// page search does (audit A04).
+	add(
+		exact && exact.phrases.length > 0
+			? exactHits.filter((h) => containsPhrases(h.text ?? '', exact.phrases))
+			: exactHits,
+		true,
+	);
 	// Semantic search always returns its top k, however weak. Show only notes that score close to
 	// the best one, so a search about a page doesn't list five loosely related notes.
 	const best = semantic.reduce((m, h) => Math.max(m, h.score), Number.NEGATIVE_INFINITY);

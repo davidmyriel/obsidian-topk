@@ -60,8 +60,6 @@ const MIME: Record<string, string> = {
 	webp: 'image/webp',
 };
 
-export const SUPPORTED_EXTENSIONS = ['pdf', ...Object.keys(MIME)] as const;
-
 export function sourceKind(extension: string): SourceKind | null {
 	const ext = extension.toLowerCase();
 	if (ext === 'pdf') return 'pdf';
@@ -165,8 +163,8 @@ export async function* imagePages(
 }
 
 /**
- * JPEG or PNG that is already within the size limits is uploaded unchanged (ADR-003). Anything
- * else is scaled down to the pixel budget (never up) and re-encoded as JPEG on white.
+ * Every image is decoded and redrawn: scaled down to the pixel budget (never up) and encoded as JPEG
+ * on white, so photo metadata such as GPS location is never uploaded (beta 2, ADR-003 amendment).
  */
 export async function prepareImage(
 	env: RenderEnv,
