@@ -5,6 +5,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.0]
+
+The first stable release. Find the PDF page or image in your vault by describing it; see the README
+for what it does and how it compares with text search. Upgrading from a beta keeps your index.
+
+### Added
+
+- A reproducible benchmark (`bench/`): 35 CC BY papers and slide decks (1,026 pages), 100 queries
+  in two tiers, and runners for text search (Omnisearch with Text Extractor), Gemini Embedding 2
+  and this plugin. `npm run bench:fetch && npm run bench` reruns it.
+- MIT licence.
+
 ### Fixed
 
 - A corrupt index state file no longer orphans uploads: the vault id is also kept in the plugin's
