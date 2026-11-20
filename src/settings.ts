@@ -21,7 +21,7 @@ export class TopKSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		containerEl.createEl('p', {
-			text: 'Page images of your PDF and image files are uploaded to TopK and stored in your TopK collection. File names and paths stay on this device.',
+			text: 'Page images and text of your PDF and image files are uploaded to TopK and stored in your TopK collection. File names and paths are not sent as separate data, but text on a page goes with it.',
 			cls: 'setting-item-description',
 		});
 
@@ -106,7 +106,7 @@ export class TopKSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName('Search notes')
 			.setDesc(
-				'Also upload the text of your Markdown notes to TopK and search them. Off by default: note text is stored in your TopK collection. File names and paths stay on this device.',
+				'Also upload the text of your Markdown notes to TopK and search them. Off by default: note text, including any links and embeds it contains, is stored in your TopK collection.',
 			)
 			.addToggle((t) =>
 				t.setValue(s.indexNotes).onChange(async (value) => {
@@ -248,7 +248,7 @@ export class TopKSettingTab extends PluginSettingTab {
 		return confirm(
 			this.app,
 			'Search your notes?',
-			`${notes.length.toLocaleString('en-US')} notes will be uploaded to TopK, split into sections, and stored in the collection "${s.collection}-notes" so they can be searched. Embedding them costs ${costText}. File names and folder paths stay on this device. Turning this off later deletes them from TopK.`,
+			`${notes.length.toLocaleString('en-US')} notes will be uploaded to TopK, split into sections, and stored in the collection "${s.collection}-notes" so they can be searched. Embedding them costs ${costText}. File names and paths are not sent as separate data, but links and embeds inside your notes are part of their text. Turning this off later deletes them from TopK.`,
 			'Upload notes',
 		);
 	}

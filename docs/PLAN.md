@@ -200,7 +200,7 @@ Build these only after launch numbers come in. Each one gets its own ADR, tests 
 | Feature | What the user sees | Depends on |
 | --- | --- | --- |
 | Find similar pages | Right-click a page or image, choose "Find visually similar", get the 10 closest pages | Querying with a page's own vectors. **On hold (Dave, 2026-10-30).** |
-| Exact text matching (hybrid ranking) | Quoted phrases and codes like "INV-2291" put pages that contain them first; other queries stay visual. Design: ADR-006 (proposed) | A `-text` collection with a TopK keyword index; spike in ADR-006 |
+| Exact text matching (hybrid ranking) | **Shipped in 2.0.0.** Quoted phrases and codes like "INV-2291" put pages that contain them first; other queries stay visual | The final design keeps page text in the page collection; the separate `-text` collection proposed here was dropped. See ADR-006, "Built: one-collection hybrid" |
 | Excalidraw and Canvas | Drawings from the Excalidraw plugin and Canvas files are rendered to PNG and searchable | Excalidraw export API |
 | Match heatmap | The result thumbnail highlights the patches that matched the query | TopK returning per-token MaxSim scores (open question) |
 | Zotero folder | Index a Zotero storage folder outside the vault, results link back to the PDF | Read access outside the vault |
@@ -231,15 +231,19 @@ Tests run in layers from fast and offline to slow and live, so every PR is check
 
 ## CI/CD and releases
 
+> **Historical plan.** What actually runs: `ci.yml` as below; `nightly.yml` runs live tests and
+> desktop e2e (macOS, Windows), not the benchmark or a results summary. Releases use bare tags
+> such as `2.1.0` (no `v`). The current steps are in [RELEASING.md](RELEASING.md).
+
 GitHub Actions runs three workflows. A release is a git tag; nothing ships from a laptop.
 
 | Workflow | Trigger | Steps |
 | --- | --- | --- |
 | `ci.yml` | Every PR and push to `main` | Install with lockfile, lint, typecheck, unit, contract, integration, build, bundle size check (fail above 1.5 MB), e2e on Linux, `npm audit --audit-level=high` |
 | `nightly.yml` | Daily, plus manual | Live tests and benchmark with the `TOPK_API_KEY` secret; e2e on macOS and Windows; posts results as a workflow summary |
-| `release.yml` | Tag `vX.Y.Z` | Check that the tag matches `manifest.json` and `versions.json`, build, attach `main.js`, `manifest.json`, `styles.css` to a GitHub release, paste the CHANGELOG entry as release notes |
+| `release.yml` | Tag `X.Y.Z` (no `v`) | Check that the tag matches `manifest.json` and `versions.json`, build, attach `main.js`, `manifest.json`, `styles.css` to a GitHub release, paste the CHANGELOG entry as release notes |
 
-Use semantic versions. Beta builds are tagged `vX.Y.Z-beta.N` and installed through BRAT.
+Use semantic versions. Beta builds are tagged `X.Y.Z-beta.N` and installed through BRAT.
 
 **Community store submission (Stage 4 gate only):** open a PR to `obsidianmd/obsidian-releases` adding the plugin to `community-plugins.json`. Before that, check the plugin against Obsidian's developer policies and plugin guidelines. The README must state network use, that a TopK account is required, and that it is a paid service with free credits.
 

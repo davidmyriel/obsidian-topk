@@ -32,8 +32,32 @@ networks, real TopK). Record the result in the release PR.
 - [ ] Save results as note writes working `[[file.pdf#page=N]]` links
 - [ ] A long screenshot shows up as one result and opens the image
 
+## Upgrade from 1.x (one-time re-upload, ADR-006)
+
+- [ ] With a 1.x index, the first Index vault shows the notice about moving to `<name>-v2`, re-uploads
+      every page, and Show index status then shows the new collection
+- [ ] Search shows nothing until that upload finishes, then works; the old collection has no pages
+      left for this vault
+
+## Exact search (ADR-006)
+
+- [ ] A quoted phrase or a code like `INV-2291` puts pages containing it first, marked "exact match"
+- [ ] A code that is on no page shows "No page contains …" and the closest pages
+
+## Notes (ADR-007)
+
+- [ ] Turning on Search notes shows the dialog with the note count and cost; Cancel leaves it off
+- [ ] After indexing, a search shows a Notes section above the pages; clicking a note opens it at
+      the matching heading
+- [ ] A vault with notes but no PDFs or images: search works and edits to notes are picked up in
+      the background
+- [ ] Exclude patterns keep a folder's notes out
+- [ ] Save results as note lists notes (linked at their heading) and pages
+- [ ] A note with more than 200 sections is listed under "Notes indexed in part" in Show index status
+- [ ] Turning Search notes off deletes this vault's notes from TopK
+
 ## Data
 
-- [ ] Remove my data from TopK empties the index; search says nothing is indexed
+- [ ] Remove my data from TopK empties the index, notes included; search says nothing is indexed
 - [ ] Rebuild index re-uploads everything (cost shown first)
 - [ ] The debug log never shows the API key

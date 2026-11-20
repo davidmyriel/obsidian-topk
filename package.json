@@ -4,7 +4,6 @@
 	"description": "Find the exact PDF page or image in your vault from a plain-language query, powered by TopK.",
 	"main": "main.js",
 	"type": "module",
-	"private": true,
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit && node esbuild.config.mjs production",
@@ -30,6 +29,18 @@
 		"visual-search"
 	],
 	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/davidmyriel/obsidian-topk.git"
+	},
+	"bugs": {
+		"url": "https://github.com/davidmyriel/obsidian-topk/issues"
+	},
+	"homepage": "https://github.com/davidmyriel/obsidian-topk#readme",
+	"engines": {
+		"node": ">=24"
+	},
+	"private": true,
 	"dependencies": {
 		"@bufbuild/protobuf": "2.16.0"
 	},

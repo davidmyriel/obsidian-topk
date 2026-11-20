@@ -88,7 +88,7 @@ noisier than a strict server-side match. But it is enough to rule out "always bl
     - Images get no text document. OCR is out of scope.
 5. **Privacy.** Page text becomes stored data in TopK, next to the page images it is derived from.
    PRIVACY.md, the first-run dialog and the setting's description must say so. File names and paths
-   still never leave the device.
+   are still not sent as separate data.
 
 ## How we will know it works
 
@@ -136,7 +136,8 @@ page's text (identifiers, acronyms, numbers, quoted phrases, such as `"Tonnetz f
 3. **Phrases:** a multi-word term matches the words in any order, so the plugin checks phrase order
    against the returned `page_text`.
 4. **Accents:** not folded, so the plugin stores and queries accent-folded text.
-5. **Size:** 100 KB of text per document is accepted. The plugin caps `page_text` at 100 KB.
+5. **Size:** 100 KB of text per document is accepted. The plugin caps `page_text` at 100,000
+   characters (JavaScript string length, so the UTF-8 size varies).
 
 ## Exact tier result (2026-11-20): not built yet
 
@@ -181,7 +182,7 @@ TopK's documented pattern instead of the two-collection design above:
   checked on the returned `page_text`. A failed exact query, such as one on an old collection,
   falls back to visual only.
 - Page text is accent-folded, whitespace-collapsed, de-hyphenated at line breaks and capped at
-  100 KB.
+  100,000 characters.
 
 ### Benchmark: hybrid against visual only, same index
 

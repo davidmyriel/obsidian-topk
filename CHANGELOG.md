@@ -17,6 +17,17 @@ All notable changes to this project are documented here. The format follows
 - A note with more than 200 sections is no longer silently cut short: the notice after indexing and
   **Show index status** list it as indexed in part.
 
+### Documentation
+
+- Privacy wording is now exact everywhere (README, PRIVACY.md, settings, upload dialogs): file
+  names and paths are not sent as separate data, but text inside uploaded pages and notes is,
+  including links and embeds such as `[[Clients/Acme plan]]`.
+- New: settings and troubleshooting guide (`docs/CONFIGURATION.md`), release runbook
+  (`docs/RELEASING.md`), contributing guide and security policy (`.github/`), and third-party
+  notices. The bundled `main.js` names its license and bundled components.
+- Architecture, QA checklist, issue forms and the old plan updated for hybrid search and notes.
+- CI attaches an installable test build to every PR.
+
 ### Removed
 
 - Two unused exports (`SUPPORTED_EXTENSIONS`, `pageLinkText`), and a comment that no longer
