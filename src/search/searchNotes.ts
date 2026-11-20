@@ -16,6 +16,9 @@ export interface NoteResult {
 	exactMatch?: boolean;
 }
 
+/** Notes scoring below this fraction of the best note's score are not shown (exact matches are). */
+export const NOTE_SCORE_RATIO = 0.7;
+
 export async function searchNotes(
 	client: NotesClient,
 	query: string,
@@ -67,6 +70,12 @@ export async function searchNotes(
 		}
 	};
 	add(exactHits, true);
-	add(semantic, false);
+	// Semantic search always returns its top k, however weak. Show only notes that score close to
+	// the best one, so a search about a page doesn't list five loosely related notes.
+	const best = semantic.reduce((m, h) => Math.max(m, h.score), Number.NEGATIVE_INFINITY);
+	add(
+		semantic.filter((h) => h.score >= best * NOTE_SCORE_RATIO),
+		false,
+	);
 	return out;
 }

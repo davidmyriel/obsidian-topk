@@ -135,6 +135,18 @@ describe('searchNotes', () => {
 		});
 	});
 
+	it('hides notes that score well below the best one, but never exact matches', async () => {
+		const client = new FakeNotesClient();
+		const state = emptyNotesState('v', 'c-notes');
+		const reader = new MemoryNotes();
+		reader.set('map.md', `# Maps\n${para('old world map atlas colonies', 10)}`);
+		reader.set('welcome.md', `# Welcome\n${para('welcome to the vault old notes', 10)}`);
+		await index(reader, client, state);
+		// The fake scores word overlap: map.md shares 3 query words, welcome.md 1.
+		const r = await searchNotes(client, 'old world map', state, { k: 5, fetchK: 20 });
+		expect(r.map((x) => x.path)).toEqual(['map.md']);
+	});
+
 	it('returns nothing when no notes are indexed', async () => {
 		const client = new FakeNotesClient();
 		expect(
