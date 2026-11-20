@@ -1,4 +1,4 @@
-// npm run bench [-- --setup bm25,topk]
+// npm run bench [-- --setup bm25,topk,gemini-1p,gemini-6p]
 //
 // Runs every query in bench/queries.jsonl through each setup and writes bench/report/: report.md,
 // results.json and recall.svg. Needs the corpus (npm run bench:fetch). The TopK setup needs
@@ -17,6 +17,7 @@ import {
 } from '../metrics';
 import { readQueries, type Query } from '../queries';
 import { bm25Setup } from './bm25';
+import { geminiSetup } from './gemini';
 import { topkSetup } from './topk';
 import { loadDotEnv, type IndexStats, type Setup } from './types';
 
@@ -204,7 +205,9 @@ function recallSvg(results: SetupResult[], queries: Query[]): string {
 
 async function main(): Promise<void> {
 	loadDotEnv();
-	const { values } = parseArgs({ options: { setup: { type: 'string', default: 'bm25,topk' } } });
+	const { values } = parseArgs({
+		options: { setup: { type: 'string', default: 'bm25,topk,gemini-1p,gemini-6p' } },
+	});
 	const wanted = new Set(values.setup.split(','));
 	const files = readCorpus().files.map((f) => f.file);
 	const missing = files.filter((f) => !existsSync(join(CORPUS_DIR, f)));
@@ -220,9 +223,12 @@ async function main(): Promise<void> {
 		if (s) setups.push(s);
 		else skipped.push('topk: skipped, TOPK_API_KEY is not set.');
 	}
-	skipped.push(
-		'Gemini Embedding 2 (6-page and 1-page chunks, PLAN.md): not run yet; needs a Gemini API key.',
-	);
+	for (const n of [1, 6]) {
+		if (!wanted.has(`gemini-${n}p`)) continue;
+		const s = geminiSetup(n);
+		if (s) setups.push(s);
+		else skipped.push(`gemini-${n}p: skipped, GEMINI_API_KEY is not set.`);
+	}
 	const results: SetupResult[] = [];
 	for (const setup of setups) results.push(await runSetup(setup, files, queries));
 	writeFileSync(join(REPORT, 'results.json'), JSON.stringify(results, null, 2));
