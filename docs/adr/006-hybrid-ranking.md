@@ -1,7 +1,7 @@
 # ADR-006: Hybrid ranking
 
-- Status: Proposed. It needs Dave's approval: it adds a TopK collection after the beta (PLAN.md
-  rule 6). A spike must confirm the TopK behaviour marked "verify".
+- Status: Accepted by Dave on 2026-11-20. Spike F (`docs/spikes/F-keyword-index.md`) answered the
+  verify list.
 - Date: 2026-11-20
 
 ## Context
@@ -124,12 +124,16 @@ page's text (identifiers, acronyms, numbers, quoted phrases, such as `"Tonnetz f
   would live on each device, re-built per device and kept in plugin data. It splits search across
   two systems for no gain over TopK's own keyword index.
 
-## Spike before building (verify)
+## Spike results (Spike F, 2026-11-20)
 
-1. How `KEYWORD_INDEX_TYPE_TEXT` tokenizes `INV-2291`, `p99`, `v0.16.1` and accented words; whether
-   `ngram_index` is the better choice for identifiers.
-2. Whether `bm25_score` needs a text filter in the same query, and how `TextTermsExpr.all` and
-   `should` combine with the `vault_id` filter.
-3. Phrase matching: whether TopK matches a quoted phrase as a phrase, or only as all of its terms.
-   If only as terms, check the phrase on the client against the returned page's text.
-4. The limits on `page_text` size per document; dense pages run to about 10 KB of text.
+`docs/spikes/F-keyword-index.md` has the details.
+
+1. **Tokenizing:** `KEYWORD_INDEX_TYPE_TEXT` keeps `INV-2291`, `p99`, `v0.16.1` and `pageSource.ts`
+   as whole tokens and ignores case. Parts (`INV`, `2291`, `0.16`) don't match. `ngram_index` is not
+   needed.
+2. **BM25:** `bm25_score` requires a text filter in the same query. A text filter and the `vault_id`
+   filter combine as AND.
+3. **Phrases:** a multi-word term matches the words in any order, so the plugin checks phrase order
+   against the returned `page_text`.
+4. **Accents:** not folded, so the plugin stores and queries accent-folded text.
+5. **Size:** 100 KB of text per document is accepted. The plugin caps `page_text` at 100 KB.
