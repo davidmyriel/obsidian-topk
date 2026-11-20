@@ -9,30 +9,9 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { BENCH } from './corpus';
+import { readQueries, type Answer, type Query } from './queries';
 
-export interface Answer {
-	file: string;
-	pages: number[];
-}
-
-export interface Query {
-	id: string;
-	query: string;
-	category: 'diagram' | 'chart' | 'table' | 'screenshot' | 'plain_text';
-	/** Answer proposed while drafting; replaced by the agreed label once both labellers agree. */
-	answers: Answer[];
-	status: 'draft' | 'labelled';
-}
-
-export const QUERIES_JSONL = join(BENCH, 'queries.jsonl');
 const LABELS = join(BENCH, 'labels');
-
-export function readQueries(): Query[] {
-	return readFileSync(QUERIES_JSONL, 'utf8')
-		.split('\n')
-		.filter((l) => l.trim())
-		.map((l) => JSON.parse(l) as Query);
-}
 
 type Labels = Record<string, Answer | null>;
 
