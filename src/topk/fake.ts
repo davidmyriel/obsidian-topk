@@ -3,6 +3,7 @@ import {
 	type PageDoc,
 	type PingResult,
 	type SearchHit,
+	type SearchOptions,
 	type TopKClient,
 } from './client';
 
@@ -39,6 +40,20 @@ export interface FakeCalls {
 	upsertedPages: number;
 	deleteRequests: number;
 	search: number;
+}
+
+/**
+ * Whole tokens of a page's text, as TopK's keyword index sees them (Spike F): split on whitespace,
+ * trailing punctuation dropped, case ignored; hyphens and dots inside a token are kept.
+ */
+export function textTokens(text: string | undefined): Set<string> {
+	return new Set(
+		(text ?? '')
+			.toLowerCase()
+			.split(/\s+/)
+			.map((t) => t.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''))
+			.filter(Boolean),
+	);
 }
 
 /** In-memory TopKClient with the same contract as the gRPC client. */
@@ -99,12 +114,19 @@ export class FakeTopK implements TopKClient {
 		});
 	}
 
-	search(query: string, k: number, vaultId: string): Promise<SearchHit[]> {
+	search(
+		query: string,
+		k: number,
+		vaultId: string,
+		options: SearchOptions = {},
+	): Promise<SearchHit[]> {
 		this.calls.search++;
+		const exact = options.exactTerms ?? [];
 		return this.run(() => {
 			this.requireCollection();
 			return [...this.docs.values()]
 				.filter((d) => d.vaultId === vaultId)
+				.filter((d) => exact.every((t) => textTokens(d.pageText).has(t.toLowerCase())))
 				.map((d) => ({
 					id: d.id,
 					contentHash: d.contentHash,
@@ -112,6 +134,9 @@ export class FakeTopK implements TopKClient {
 					tile: d.tile,
 					kind: d.kind,
 					score: this.scorer(query, d),
+					...(exact.length > 0 && d.pageText !== undefined
+						? { pageText: d.pageText }
+						: {}),
 				}))
 				.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
 				.slice(0, k);

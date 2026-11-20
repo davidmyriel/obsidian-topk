@@ -130,3 +130,13 @@ without looking at `queries.jsonl`. Record it in `bench/labels/<your initials>.j
 - **e23** (plain_text): SSVEP
 - **e24** (plain_text): "centralized training but decentralized execution"
 - **e25** (screenshot): "Datasets Over Algorithms"
+- **n01** (table): invoice INV-2297
+- **n02** (table): invoice INV-2301
+- **n03** (table): INV-2290
+- **n04** (table): invoice number INV-2305
+- **n05** (table): the INV-2309 invoice
+- **n06** (table): invoice INV-2294 total due
+- **n07** (table): Blue Harbor Labs invoice INV-2302
+- **n08** (table): invoice INV-2296 for Granite Peak Media
+- **n09** (table): invoice for Tidewater Supply issued 2026-01-19
+- **n10** (table): invoice for Granite Peak Media with total €9,265.00

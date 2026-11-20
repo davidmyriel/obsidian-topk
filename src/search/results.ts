@@ -13,11 +13,13 @@ export function resolveHits(
 	state: IndexState,
 	limit: number,
 	exists: (path: string) => boolean = () => true,
+	/** Keep the order TopK returned, e.g. the hybrid ranking of exact matches. */
+	keepOrder = false,
 ): ResolvedResult[] {
 	const paths = pathsByHash(state);
 	const out: ResolvedResult[] = [];
 	const seen = new Set<string>();
-	for (const hit of [...hits].sort((a, b) => b.score - a.score)) {
+	for (const hit of keepOrder ? hits : [...hits].sort((a, b) => b.score - a.score)) {
 		const path = paths.get(hit.contentHash)?.find(exists);
 		const key = `${hit.contentHash}:${hit.page}`;
 		if (!path || seen.has(key)) continue; // tiles of one image collapse into one result

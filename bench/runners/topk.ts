@@ -4,8 +4,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DEFAULT_INDEX_OPTIONS, runIndex } from '../../src/indexer/indexer';
 import { emptyState, parseState, type IndexState } from '../../src/indexer/state';
-import { withNameMatches } from '../../src/search/nameMatch';
-import { resolveHits } from '../../src/search/results';
+import { searchVault } from '../../src/search/searchVault';
 import { MODEL_MAX_PIXELS } from '../../src/settingsModel';
 import { GrpcTopKClient } from '../../src/topk/grpcClient';
 import { PRICES } from '../../src/util/cost';
@@ -16,10 +15,14 @@ import type { IndexStats, Setup } from './types';
 
 const VAULT_ID = 'bench';
 
-export function topkSetup(): Setup | null {
+/**
+ * The plugin's search. With `exactText: false`, visual search only, to measure what hybrid adds.
+ * Both variants share one index.
+ */
+export function topkSetup(exactText = true): Setup | null {
 	const apiKey = process.env.TOPK_API_KEY;
 	if (!apiKey) return null;
-	const collection = process.env.TOPK_BENCH_COLLECTION ?? 'bench-visual-search';
+	const collection = process.env.TOPK_BENCH_COLLECTION ?? 'bench-visual-search-v2';
 	const client = new GrpcTopKClient({
 		apiKey,
 		collection,
@@ -29,8 +32,10 @@ export function topkSetup(): Setup | null {
 	const statsPath = join(BENCH, 'report', `topk-index-stats-${collection}.json`);
 	let state: IndexState = emptyState(VAULT_ID, collection);
 	return {
-		id: 'topk',
-		label: 'TopK, topk-embed-v1, one entry per page (this plugin)',
+		id: exactText ? 'topk' : 'topk-visual',
+		label: exactText
+			? 'TopK hybrid: visual + exact text (this plugin)'
+			: 'TopK visual only (topk-embed-v1, one entry per page)',
 		async index(): Promise<IndexStats> {
 			if (existsSync(statePath)) {
 				state = parseState(
@@ -80,14 +85,13 @@ export function topkSetup(): Setup | null {
 			return stats;
 		},
 		async search(query: string, k: number): Promise<PageRef[]> {
-			const hits = await client.search(query, k * 2, VAULT_ID, {
+			const { results } = await searchVault(client, query, state, {
+				k,
+				fetchK: k * 2,
+				exactText,
 				...(state.lastLsn ? { requiredLsn: state.lastLsn } : {}),
 			});
-			// The same ranking as the plugin, including file-name matching for short queries.
-			return withNameMatches(resolveHits(hits, state, k), query, state, k).map((r) => ({
-				file: r.path,
-				page: r.page,
-			}));
+			return results.map((r) => ({ file: r.path, page: r.page }));
 		},
 		close: () => client.close(),
 	};

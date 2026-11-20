@@ -1,7 +1,7 @@
 # ADR-006: Hybrid ranking
 
-- Status: Accepted by Dave on 2026-11-20; **implementation deferred** by its own acceptance test (see
-  "Exact tier result"). Spike F (`docs/spikes/F-keyword-index.md`) answered the verify list.
+- Status: Accepted by Dave on 2026-11-20. First deferred by its acceptance test, then built at Dave's
+  request with the one-collection design (see "Built: one-collection hybrid"). Spike F (`docs/spikes/F-keyword-index.md`) answered the verify list.
 - Date: 2026-11-20
 
 ## Context
@@ -163,3 +163,38 @@ revisit if:
 - the exact tier grows with such cases and TopK drops well below its current score.
 
 The cheapest next test is a "near-duplicate identifiers" tier, built from a corpus that has them.
+
+## Built: one-collection hybrid (2026-11-20)
+
+Dave asked to launch with hybrid, to show TopK's one-query hybrid search. Because only a few beta
+testers have indexes, this was the cheapest moment to change the stored format. The build follows
+TopK's documented pattern instead of the two-collection design above:
+
+- **One collection** holds `page_image` (semantic index) and `page_text` (keyword index, text
+  type, optional). A 1.x collection lacks `page_text` and can't be changed, so the first index run
+  moves to `<name>-v2`; the existing collection-change handling re-uploads and cleans up.
+- **One hybrid query** for searches with exact parts (quoted phrases, tokens with both letters and
+  digits, 3+ characters):
+  `select(score = semantic_similarity, text_score = bm25_score(), page_text)`, then filter
+  `vault_id` and `match(all terms)`, then sort by `score + 0.1 · text_score`. It runs in parallel
+  with the plain visual query. Exact matches come first, then the visual results. Phrase order is
+  checked on the returned `page_text`. A failed exact query, such as one on an old collection,
+  falls back to visual only.
+- Page text is accent-folded, whitespace-collapsed, de-hyphenated at line breaks and capped at
+  100 KB.
+
+### Benchmark: hybrid against visual only, same index
+
+| Tier (queries)               | Visual only R@1 | Hybrid R@1 |
+| ---------------------------- | --------------- | ---------- |
+| Specific (50)                | 100%            | 100%       |
+| Vague (50)                   | 48%             | 48%        |
+| Exact codes and phrases (25) | 92%             | 96%        |
+| Near-duplicate invoices (10) | 100%            | 100%       |
+
+Hybrid changes one query of 135: a grid label inside a plot (`32x68x160`), from rank 2 to 1. It
+costs nothing elsewhere. The near-duplicate invoices, generated to look alike, are all found by
+visual search alone: topk-embed-v1 reads a printed invoice number reliably. The acceptance test
+(a clear win on near-duplicates) is therefore **not met**. The case for shipping hybrid is the
+TopK showcase and robustness on content this benchmark lacks (small print, scans with an OCR text
+layer, very large vaults), not a measured gain.

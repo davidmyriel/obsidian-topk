@@ -157,8 +157,9 @@ export class IndexController {
 		this.statusEl.hide();
 	}
 
+	/** True from the moment a run starts, including its collection check before indexing. */
 	get running(): boolean {
-		return this.controller !== null;
+		return this.current !== null || this.controller !== null;
 	}
 
 	cancel(): void {
@@ -214,13 +215,23 @@ export class IndexController {
 	private current: Promise<void> | null = null;
 
 	private async runOnce(background: boolean, retryFailed: boolean): Promise<void> {
-		const client = this.plugin.createClient();
-		if (!client) return;
+		// The controller exists from the start, so Cancel and `running` cover the collection check.
 		const controller = new AbortController();
 		this.controller = controller;
 		if (!background) {
 			this.statusEl.show();
 			this.textEl.setText('Scanning…');
+		}
+		// A collection from before page text (ADR-006) is replaced first; see upgradeCollection().
+		const client = await this.plugin.upgradeCollection().catch((err: unknown) => {
+			this.plugin.log.debug('collection upgrade check failed', String(err));
+			return this.plugin.createClient();
+		});
+		if (!client || controller.signal.aborted) {
+			client?.close();
+			this.controller = null;
+			this.statusEl.hide();
+			return;
 		}
 		const store = this.plugin.stateStore;
 		try {
@@ -458,7 +469,7 @@ class FirstRunModal extends Modal {
 		});
 		const list = contentEl.createEl('ul');
 		list.createEl('li', {
-			text: 'Each page is sent as an image and stored in TopK so it can be searched.',
+			text: 'Each page is sent as an image, with the text of PDF pages, and stored in TopK so it can be searched.',
 		});
 		list.createEl('li', { text: 'File names and folder paths stay on this device.' });
 		list.createEl('li', { text: costSentence(plan.totalPages) });

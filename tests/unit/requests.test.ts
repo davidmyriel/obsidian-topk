@@ -7,6 +7,7 @@ import {
 	createCollectionRequest,
 	deletePagesRequest,
 	IMAGE_FIELD,
+	TEXT_FIELD,
 	searchRequest,
 	upsertPagesRequest,
 } from '../../src/topk/requests';
@@ -21,8 +22,15 @@ describe('createCollectionRequest', () => {
 		expect(req.schema.page?.dataType?.dataType.case).toBe('integer');
 		expect(req.schema.vault_id?.dataType?.dataType.case).toBe('text');
 		expect(Object.keys(req.schema).sort()).toEqual(
-			['content_hash', 'kind', 'page', 'page_image', 'tile', 'vault_id'].sort(),
+			['content_hash', 'kind', 'page', 'page_image', 'page_text', 'tile', 'vault_id'].sort(),
 		);
+	});
+
+	it('declares the page text as an optional text field with a keyword index (ADR-006)', () => {
+		const text = createCollectionRequest('pages').schema[TEXT_FIELD];
+		expect(text?.dataType?.dataType.case).toBe('text');
+		expect(text?.required).toBe(false);
+		expect(text?.index?.index.case).toBe('keywordIndex');
 	});
 });
 

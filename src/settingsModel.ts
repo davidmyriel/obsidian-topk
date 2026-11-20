@@ -69,6 +69,13 @@ export function collectionNameError(name: string): string | null {
 
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]']);
 
+/** "pages" → "pages-v2", "pages-v2" → "pages-v3": the collection that replaces an old one. */
+export function nextCollectionName(name: string): string {
+	const m = /^(.*)-v(\d+)$/.exec(name);
+	const next = m ? `${m[1]}-v${Number(m[2]) + 1}` : `${name}-v2`;
+	return next.length <= 128 ? next : `${next.slice(0, 120)}-v${Date.now() % 1000}`;
+}
+
 export function endpointError(endpoint: string): string | null {
 	if (!endpoint) return null;
 	try {

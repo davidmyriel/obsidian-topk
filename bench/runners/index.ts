@@ -82,6 +82,11 @@ const TIERS: { id: Query['tier']; title: string; about: string }[] = [
 		about: 'The same targets as a half-remembered description of 3–8 words, with no colours, numbers or names. Several pages can fit a vague query, but only the original page counts, so these scores are a lower bound.',
 	},
 	{
+		id: 'near-duplicate',
+		title: 'Near-duplicate invoices',
+		about: '20 generated invoices with the same layout that differ only in number, customer, dates and amounts (bench/invoices.ts). Eight queries name the invoice number; two describe the invoice without it, as a control.',
+	},
+	{
 		id: 'exact',
 		title: 'Exact queries',
 		about: 'Built around an identifier, code or quoted phrase that appears in the text of the target page and no other page (ADR-006). One target, "Datasets Over Algorithms", exists only inside a screenshot, with no text layer.',
@@ -170,7 +175,7 @@ function recallSvg(results: SetupResult[], queries: Query[]): string {
 	const bottom = 230;
 	const top = 36;
 	const tiers = TIERS.filter((t) => queries.some((q) => q.tier === t.id));
-	const colors = ['#2f6fde', '#9bbcf5', '#e8913a'];
+	const colors = ['#2f6fde', '#9bbcf5', '#e8913a', '#3aa37a'];
 	const group = (W - left - 20) / Math.max(1, results.length);
 	const bar = Math.min(60, group / (tiers.length + 1));
 	const y = (v: number): number => bottom - v * (bottom - top);
@@ -211,7 +216,9 @@ function recallSvg(results: SetupResult[], queries: Query[]): string {
 async function main(): Promise<void> {
 	loadDotEnv();
 	const { values } = parseArgs({
-		options: { setup: { type: 'string', default: 'bm25,topk,gemini-1p,gemini-6p' } },
+		options: {
+			setup: { type: 'string', default: 'bm25,topk-visual,topk,gemini-1p,gemini-6p' },
+		},
 	});
 	const wanted = new Set(values.setup.split(','));
 	const files = readCorpus().files.map((f) => f.file);
@@ -223,10 +230,14 @@ async function main(): Promise<void> {
 	const skipped: string[] = [];
 	const setups: Setup[] = [];
 	if (wanted.has('bm25')) setups.push(bm25Setup());
-	if (wanted.has('topk')) {
-		const s = topkSetup();
+	for (const [id, exactText] of [
+		['topk-visual', false],
+		['topk', true],
+	] as const) {
+		if (!wanted.has(id)) continue;
+		const s = topkSetup(exactText);
 		if (s) setups.push(s);
-		else skipped.push('topk: skipped, TOPK_API_KEY is not set.');
+		else skipped.push(`${id}: skipped, TOPK_API_KEY is not set.`);
 	}
 	for (const n of [1, 6]) {
 		if (!wanted.has(`gemini-${n}p`)) continue;

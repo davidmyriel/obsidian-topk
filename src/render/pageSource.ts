@@ -49,6 +49,8 @@ export interface PageImage {
 	tiled?: boolean;
 	format: ImageFormat;
 	bytes: Uint8Array;
+	/** The PDF page's text layer; absent for images. */
+	text?: string;
 }
 
 const MIME: Record<string, string> = {
@@ -101,7 +103,7 @@ export async function* pageImages(
 			...(options.skipPage ? { skipPage: options.skipPage } : {}),
 			...(env.documentOptions ? { documentOptions: env.documentOptions } : {}),
 		})) {
-			yield { page: p.page, tile: 0, format: p.format, bytes: p.bytes };
+			yield { page: p.page, tile: 0, format: p.format, bytes: p.bytes, text: p.text };
 		}
 		return;
 	}

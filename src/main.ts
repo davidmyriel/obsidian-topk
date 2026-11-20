@@ -6,7 +6,7 @@ import { IndexController, IndexMaintenance, IndexStatusModal, StateStore } from 
 import { noteBaseName, resultsNote, type ResolvedResult } from './search/links';
 import { VisualSearchModal, type LastSearch } from './search/searchModal';
 import { TopKSettingTab } from './settings';
-import { loadSettings, type Settings } from './settingsModel';
+import { loadSettings, nextCollectionName, type Settings } from './settingsModel';
 import type { TopKClient } from './topk/client';
 import { GrpcTopKClient } from './topk/grpcClient';
 import { Logger } from './util/logger';
@@ -185,6 +185,39 @@ export default class TopKVisualSearchPlugin extends Plugin {
 			region: this.settings.region,
 			...(this.settings.endpoint ? { endpoint: this.settings.endpoint } : {}),
 		});
+	}
+
+	/** Collections checked this session that already have the page text field. */
+	private readonly upToDate = new Set<string>();
+
+	/**
+	 * Returns a client for the collection to index into. A collection created before 2.0 has no
+	 * page text field and its schema can't be changed (ADR-006), so the plugin moves to a new
+	 * collection, "<name>-v2". That is an ordinary collection change: the next run uploads every
+	 * page there and deletes this vault's pages from the old one (beta 1 F11).
+	 */
+	async upgradeCollection(): Promise<TopKClient | null> {
+		for (let attempt = 0; attempt < 5; attempt++) {
+			const client = this.createClient();
+			if (!client) return null;
+			const name = this.settings.collection;
+			if (this.upToDate.has(name)) return client;
+			const { needsUpgrade } = await client.ping();
+			if (!needsUpgrade) {
+				this.upToDate.add(name);
+				return client;
+			}
+			client.close();
+			const next = nextCollectionName(name);
+			this.log.debug('collection has no page text; moving to', next);
+			this.settings.collection = next;
+			await this.saveSettings();
+			new Notice(
+				`TopK Visual Search now also searches page text. Your pages are being uploaded again to the collection "${next}", and this vault's pages are removed from "${name}". Search works again when the upload finishes.`,
+				15_000,
+			);
+		}
+		return this.createClient();
 	}
 
 	/** Deletes this vault's pages from collections it used before the setting changed (F11). */

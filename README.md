@@ -63,7 +63,8 @@ caveats, and run it yourself with `npm run bench:fetch` and `npm run bench`.
 
 Describe pages in a few words ("old world map", "bar chart of rainfall by year"): the image model
 needs more than one word to rank well. One- and two-word searches also match file names on your
-device.
+device. Put exact phrases in quotes, or type a code such as `INV-2291`: pages whose text contains
+it come first, through TopK's hybrid search of image and text in one query.
 
 After the first index, the plugin keeps the index up to date on its own: a few seconds after you
 add, change, rename or delete a PDF or image, and when Obsidian starts. Turn off **Index
@@ -80,7 +81,8 @@ Indexed file types: PDF, PNG, JPEG and WebP.
 ## Network use and privacy
 
 The plugin connects only to the TopK endpoint for your region. It uploads an image of each page,
-which TopK stores in your collection so it can be searched, and the text of your queries. Images are
+and the text layer of each PDF page, which TopK stores in your collection so they can be searched,
+and the text of your queries. Images are
 redrawn before upload, so photo metadata such as GPS location is not sent. File names and folder
 paths never leave your device. There is no telemetry. See [docs/PRIVACY.md](docs/PRIVACY.md).
 

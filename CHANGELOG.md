@@ -5,6 +5,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+Candidate for 2.0.0: it changes what is stored in TopK and re-uploads every page once.
+
+### Added
+
+- **Exact text search (hybrid).** Searches with a quoted phrase or a code such as `INV-2291`,
+  `p99` or `v0.16.1` also run TopK's one-query hybrid search: pages whose text contains every term
+  come first, marked "exact match", ranked by the visual score plus BM25. Other searches stay
+  purely visual. If no page contains the terms, the closest pages are shown with a note.
+- Each PDF page's text layer is now stored in TopK with the page image (see PRIVACY.md).
+
+### Changed
+
+- **One-time re-upload.** A collection created by 1.x has no page-text field, and TopK schemas
+  can't be changed, so the first index run moves to a new collection (`<name>-v2`), uploads every
+  page there and removes this vault's pages from the old one. Search works again when it finishes.
+
 ## [1.1.0]
 
 ### Improved

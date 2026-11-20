@@ -7,6 +7,7 @@ import {
 	type RenderEnv,
 	type SourceKind,
 } from '../render/pageSource';
+import { pageTextForIndex } from '../search/exact';
 import { sha256Hex } from '../util/hash';
 import { compileFilter, type PathFilter } from './globs';
 import { Uploader } from './uploader';
@@ -401,6 +402,7 @@ export async function runIndex(
 					maxTiles: options.maxPagesPerFile,
 				})) {
 					job.outstanding++;
+					const pageText = img.text ? pageTextForIndex(img.text) : undefined;
 					await uploader.add({
 						id: pageId(state.vaultId, item.hash, img.page, img.tile),
 						vaultId: state.vaultId,
@@ -409,6 +411,7 @@ export async function runIndex(
 						tile: img.tile,
 						kind: item.kind === 'pdf' ? 'pdf_page' : img.tiled ? 'image_tile' : 'image',
 						image: { format: img.format, bytes: img.bytes },
+						...(pageText ? { pageText } : {}),
 					});
 					total = Math.max(total, ++done);
 					deps.onProgress?.({

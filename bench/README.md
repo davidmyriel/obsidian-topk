@@ -41,6 +41,9 @@ two queries:
 - **exact** (`e01`–`e25`): built around an identifier, code or quoted phrase that appears in the
   text of the target page only (ADR-006). One phrase exists only inside a screenshot.
 
+- **near-duplicate** (`n01`–`n10`): 20 generated invoices with one layout (`bench/invoices.ts`,
+  built by `bench:fetch`), told apart only by number, customer, dates and amounts.
+
 Each line holds the query, its tier and category, and a drafted answer (`file`, 1-based `pages`)
 with `status: "draft"`.
 

@@ -5,8 +5,9 @@ import { pdfPagePreview } from '../render/preview';
 import { TopKError } from '../topk/client';
 import { domCanvasFactory } from '../util/domCanvas';
 import { fileName, type ResolvedResult } from './links';
-import { shortQueryWords, withNameMatches } from './nameMatch';
-import { cleanQuery, MAX_QUERY_CHARS, resolveHits } from './results';
+import { shortQueryWords } from './nameMatch';
+import { searchVault } from './searchVault';
+import { cleanQuery, MAX_QUERY_CHARS } from './results';
 
 const FETCH_K = 20;
 const SHOW_K = 10;
@@ -95,26 +96,27 @@ export class VisualSearchModal extends Modal {
 		this.rows = [];
 		const started = performance.now();
 		try {
-			const hits = await client.search(query, FETCH_K, state.vaultId, {
+			const exists = (path: string): boolean => this.app.vault.getFileByPath(path) !== null;
+			const { results, exact, exactMatches } = await searchVault(client, query, state, {
+				k: SHOW_K,
+				fetchK: FETCH_K,
+				exists,
 				...(state.lastLsn ? { requiredLsn: state.lastLsn } : {}),
+				onExactError: (err) => this.plugin.log.debug('exact search failed', String(err)),
 			});
 			if (id !== this.searchId) return;
-			const exists = (path: string): boolean => this.app.vault.getFileByPath(path) !== null;
-			// Short queries also match file names, on this device only (nameMatch.ts).
-			const results = withNameMatches(
-				resolveHits(hits, state, SHOW_K, exists),
-				query,
-				state,
-				SHOW_K,
-				exists,
-			);
 			this.plugin.lastSearch = { query, results };
 			this.plugin.log.debug('search', {
 				ms: Math.round(performance.now() - started),
-				hits: hits.length,
+				results: results.length,
+				exactMatches,
 			});
 			this.showResults(results);
-			if (shortQueryWords(query).length === 1) {
+			if (exact && exactMatches === 0) {
+				this.statusEl.setText(
+					`No page contains ${exact.terms.map((t) => `"${t}"`).join(', ')}. Showing the closest pages.`,
+				);
+			} else if (shortQueryWords(query).length === 1 && !exact) {
 				this.statusEl.setText(
 					'Tip: one word is hard to search by how a page looks. Describe it in a few words, like "old world map".',
 				);
@@ -151,7 +153,11 @@ export class VisualSearchModal extends Modal {
 			result.kind === 'pdf_page' ? `Page ${result.page} · ${result.path}` : result.path;
 		body.createDiv({
 			cls: 'topk-result-meta',
-			text: result.nameMatch ? `${meta} · matched by file name` : meta,
+			text: result.exactMatch
+				? `${meta} · exact match`
+				: result.nameMatch
+					? `${meta} · matched by file name`
+					: meta,
 		});
 		const snippet = body.createDiv({ cls: 'topk-result-snippet' });
 
