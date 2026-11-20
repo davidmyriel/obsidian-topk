@@ -4,6 +4,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DEFAULT_INDEX_OPTIONS, runIndex } from '../../src/indexer/indexer';
 import { emptyState, parseState, type IndexState } from '../../src/indexer/state';
+import { withNameMatches } from '../../src/search/nameMatch';
 import { resolveHits } from '../../src/search/results';
 import { MODEL_MAX_PIXELS } from '../../src/settingsModel';
 import { GrpcTopKClient } from '../../src/topk/grpcClient';
@@ -82,7 +83,11 @@ export function topkSetup(): Setup | null {
 			const hits = await client.search(query, k * 2, VAULT_ID, {
 				...(state.lastLsn ? { requiredLsn: state.lastLsn } : {}),
 			});
-			return resolveHits(hits, state, k).map((r) => ({ file: r.path, page: r.page }));
+			// The same ranking as the plugin, including file-name matching for short queries.
+			return withNameMatches(resolveHits(hits, state, k), query, state, k).map((r) => ({
+				file: r.path,
+				page: r.page,
+			}));
 		},
 		close: () => client.close(),
 	};

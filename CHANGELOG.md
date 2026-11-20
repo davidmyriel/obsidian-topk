@@ -5,6 +5,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Improved
+
+- Searches of one or two words also match file names, so "map" finds `Larousse world map.jpg` even
+  though the image model ranks a one-word description poorly. Files whose name contains the words
+  move to the top and are marked "matched by file name". Matching runs on your device; file names
+  still never leave it.
+- A one-word search shows a tip to describe the page in a few words, which ranks far better.
+
 ## [1.0.0]
 
 The first stable release. Find the PDF page or image in your vault by describing it; see the README

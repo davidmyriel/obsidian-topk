@@ -5,6 +5,7 @@ import { pdfPagePreview } from '../render/preview';
 import { TopKError } from '../topk/client';
 import { domCanvasFactory } from '../util/domCanvas';
 import { fileName, type ResolvedResult } from './links';
+import { shortQueryWords, withNameMatches } from './nameMatch';
 import { cleanQuery, MAX_QUERY_CHARS, resolveHits } from './results';
 
 const FETCH_K = 20;
@@ -99,13 +100,25 @@ export class VisualSearchModal extends Modal {
 			});
 			if (id !== this.searchId) return;
 			const exists = (path: string): boolean => this.app.vault.getFileByPath(path) !== null;
-			const results = resolveHits(hits, state, SHOW_K, exists);
+			// Short queries also match file names, on this device only (nameMatch.ts).
+			const results = withNameMatches(
+				resolveHits(hits, state, SHOW_K, exists),
+				query,
+				state,
+				SHOW_K,
+				exists,
+			);
 			this.plugin.lastSearch = { query, results };
 			this.plugin.log.debug('search', {
 				ms: Math.round(performance.now() - started),
 				hits: hits.length,
 			});
 			this.showResults(results);
+			if (shortQueryWords(query).length === 1) {
+				this.statusEl.setText(
+					'Tip: one word is hard to search by how a page looks. Describe it in a few words, like "old world map".',
+				);
+			}
 		} catch (err) {
 			if (id !== this.searchId) return;
 			this.statusEl.setText(
@@ -136,7 +149,10 @@ export class VisualSearchModal extends Modal {
 		title.createSpan({ text: fileName(result.path) });
 		const meta =
 			result.kind === 'pdf_page' ? `Page ${result.page} · ${result.path}` : result.path;
-		body.createDiv({ cls: 'topk-result-meta', text: meta });
+		body.createDiv({
+			cls: 'topk-result-meta',
+			text: result.nameMatch ? `${meta} · matched by file name` : meta,
+		});
 		const snippet = body.createDiv({ cls: 'topk-result-snippet' });
 
 		const open = (): void => {
