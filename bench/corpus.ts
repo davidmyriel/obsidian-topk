@@ -24,7 +24,7 @@ export interface Corpus {
 	files: CorpusFile[];
 }
 
-const BENCH = dirname(new URL(import.meta.url).pathname);
+export const BENCH = dirname(new URL(import.meta.url).pathname);
 export const CORPUS_JSON = join(BENCH, 'corpus.json');
 export const CORPUS_DIR = join(BENCH, 'corpus');
 
