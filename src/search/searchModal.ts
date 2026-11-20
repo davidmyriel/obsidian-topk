@@ -6,21 +6,26 @@ import { TopKError } from '../topk/client';
 import { domCanvasFactory } from '../util/domCanvas';
 import { fileName, type ResolvedResult } from './links';
 import { shortQueryWords } from './nameMatch';
+import { searchNotes, type NoteResult } from './searchNotes';
 import { searchVault } from './searchVault';
 import { cleanQuery, MAX_QUERY_CHARS } from './results';
 
 const FETCH_K = 20;
 const SHOW_K = 10;
+/** Notes shown above the pages when notes search is on (ADR-007). */
+const SHOW_NOTES = 5;
 
 export interface LastSearch {
 	query: string;
 	results: ResolvedResult[];
+	notes?: NoteResult[];
 }
 
 /** "Visual search": type a description, get the top pages with thumbnails, open one. */
 export class VisualSearchModal extends Modal {
 	private inputEl!: HTMLInputElement;
 	private statusEl!: HTMLElement;
+	private notesEl!: HTMLElement;
 	private listEl!: HTMLElement;
 	private rows: HTMLElement[] = [];
 	private readonly objectUrls: string[] = [];
@@ -47,6 +52,7 @@ export class VisualSearchModal extends Modal {
 			},
 		});
 		this.statusEl = contentEl.createDiv({ cls: 'topk-search-status' });
+		this.notesEl = contentEl.createDiv({ cls: 'topk-notes' });
 		this.listEl = contentEl.createDiv({ cls: 'topk-results' });
 		const footer = contentEl.createDiv({ cls: 'topk-search-footer' });
 		const save = footer.createEl('button', { text: 'Save results as note' });
@@ -64,7 +70,7 @@ export class VisualSearchModal extends Modal {
 		const last = this.plugin.lastSearch;
 		if (last) {
 			this.inputEl.value = last.query;
-			this.showResults(last.results);
+			this.showResults(last.results, last.notes ?? []);
 		}
 		this.inputEl.focus();
 		this.inputEl.select();
@@ -81,37 +87,58 @@ export class VisualSearchModal extends Modal {
 		if (!query) return;
 		const id = ++this.searchId;
 		const state = await this.plugin.stateStore.load();
-		if (
-			!Object.values(state.hashes).some(
-				(h) => h.status === 'indexed' || h.status === 'partial',
-			)
-		) {
+		const notesState = this.plugin.settings.indexNotes
+			? await this.plugin.notesStore.load()
+			: null;
+		const hasPages = Object.values(state.hashes).some(
+			(h) => h.status === 'indexed' || h.status === 'partial',
+		);
+		const hasNotes = Object.values(notesState?.notes ?? {}).some((n) => n.ids.length > 0);
+		if (!hasPages && !hasNotes) {
 			this.statusEl.setText('Nothing is indexed yet. Run the index vault command first.');
 			return;
 		}
 		const client = this.plugin.createClient();
 		if (!client) return;
+		const notesClient = notesState && hasNotes ? this.plugin.createNotesClient() : null;
 		this.statusEl.setText('Searching…');
+		this.notesEl.empty();
 		this.listEl.empty();
 		this.rows = [];
 		const started = performance.now();
 		try {
 			const exists = (path: string): boolean => this.app.vault.getFileByPath(path) !== null;
-			const { results, exact, exactMatches } = await searchVault(client, query, state, {
-				k: SHOW_K,
-				fetchK: FETCH_K,
-				exists,
-				...(state.lastLsn ? { requiredLsn: state.lastLsn } : {}),
-				onExactError: (err) => this.plugin.log.debug('exact search failed', String(err)),
-			});
+			const [pages, notes] = await Promise.all([
+				searchVault(client, query, state, {
+					k: SHOW_K,
+					fetchK: FETCH_K,
+					exists,
+					...(state.lastLsn ? { requiredLsn: state.lastLsn } : {}),
+					onExactError: (err) =>
+						this.plugin.log.debug('exact search failed', String(err)),
+				}),
+				notesClient && notesState
+					? searchNotes(notesClient, query, notesState, {
+							k: SHOW_NOTES,
+							fetchK: FETCH_K,
+							exists,
+						}).catch((err: unknown): NoteResult[] => {
+							// Notes are extra: a failure there must not hide the page results.
+							this.plugin.log.debug('notes search failed', String(err));
+							return [];
+						})
+					: Promise.resolve<NoteResult[]>([]),
+			]);
+			const { results, exact, exactMatches } = pages;
 			if (id !== this.searchId) return;
-			this.plugin.lastSearch = { query, results };
+			this.plugin.lastSearch = { query, results, notes };
 			this.plugin.log.debug('search', {
 				ms: Math.round(performance.now() - started),
 				results: results.length,
+				notes: notes.length,
 				exactMatches,
 			});
-			this.showResults(results);
+			this.showResults(results, notes);
 			if (exact && exactMatches === 0) {
 				this.statusEl.setText(
 					`No page contains ${exact.terms.map((t) => `"${t}"`).join(', ')}. Showing the closest pages.`,
@@ -128,14 +155,54 @@ export class VisualSearchModal extends Modal {
 			);
 		} finally {
 			client.close();
+			notesClient?.close();
 		}
 	}
 
-	private showResults(results: ResolvedResult[]): void {
+	private showResults(results: ResolvedResult[], notes: NoteResult[]): void {
+		this.notesEl.empty();
 		this.listEl.empty();
 		this.rows = [];
-		this.statusEl.setText(results.length === 0 ? 'No matching pages.' : '');
-		results.forEach((result, i) => this.rows.push(this.renderRow(result, i)));
+		this.statusEl.setText(
+			results.length === 0 && notes.length === 0 ? 'No matching pages.' : '',
+		);
+		if (notes.length > 0) {
+			this.notesEl.createDiv({ cls: 'topk-section-title', text: 'Notes' });
+			for (const note of notes) this.rows.push(this.renderNoteRow(note, this.rows.length));
+			if (results.length > 0) {
+				this.notesEl.createDiv({ cls: 'topk-section-title', text: 'Pages' });
+			}
+		}
+		for (const result of results) this.rows.push(this.renderRow(result, this.rows.length));
+	}
+
+	private renderNoteRow(note: NoteResult, index: number): HTMLElement {
+		const row = this.notesEl.createDiv({
+			cls: 'topk-result topk-note',
+			attr: { tabindex: '0', 'data-rank': String(index + 1) },
+		});
+		const body = row.createDiv({ cls: 'topk-result-body' });
+		const title = body.createDiv({ cls: 'topk-result-title' });
+		setIcon(title.createSpan({ cls: 'topk-result-icon' }), 'sticky-note');
+		title.createSpan({ text: fileName(note.path).replace(/\.md$/i, '') });
+		const where = note.heading ? `§ ${note.heading} · ${note.path}` : note.path;
+		body.createDiv({
+			cls: 'topk-result-meta',
+			text: note.exactMatch ? `${where} · exact match` : where,
+		});
+		const open = (): void => {
+			this.close();
+			void this.plugin.openNote(note);
+		};
+		row.addEventListener('click', open);
+		row.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter') open();
+			else if (e.key === 'ArrowDown') (this.rows[index + 1] ?? row).focus();
+			else if (e.key === 'ArrowUp') (this.rows[index - 1] ?? this.inputEl).focus();
+			else return;
+			e.preventDefault();
+		});
+		return row;
 	}
 
 	private renderRow(result: ResolvedResult, index: number): HTMLElement {

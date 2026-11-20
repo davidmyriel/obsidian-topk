@@ -27,6 +27,7 @@ import {
 } from './indexer/state';
 import { indexStatus } from './indexer/status';
 import { costSentence } from './util/cost';
+import { notesSummaryText, removeNotes, runNotes } from './notesIndexing';
 import type { PdfJsLike } from './render/pdfRenderer';
 import type { RenderEnv } from './render/pageSource';
 import { TopKError } from './topk/client';
@@ -298,8 +299,23 @@ export class IndexController {
 					onResume: () => this.textEl.setText('Resuming…'),
 				},
 			);
-			if (!background || summary.failed.length > 0) new Notice(summaryText(summary), 8_000);
+			// Notes come after pages, in the same run (ADR-007).
+			const notes =
+				summary.cancelled || controller.signal.aborted
+					? null
+					: await runNotes(this.plugin, controller.signal, (done, total) => {
+							this.statusEl.show();
+							this.textEl.setText(`Indexing notes ${done + 1} of ${total}…`);
+						});
+			const notesFailed = notes?.failed.length ?? 0;
+			if (!background || summary.failed.length > 0 || notesFailed > 0) {
+				const notesText = notes ? notesSummaryText(notes) : '';
+				new Notice([summaryText(summary), notesText].filter(Boolean).join(' '), 8_000);
+			}
 			for (const f of summary.failed) this.plugin.log.debug('index failed', f.path, f.reason);
+			for (const f of notes?.failed ?? []) {
+				this.plugin.log.debug('note failed', f.path, f.reason);
+			}
 		} catch (err) {
 			new Notice(
 				err instanceof TopKError ? err.message : `Indexing failed: ${String(err)}`,
@@ -336,6 +352,7 @@ export class IndexMaintenance {
 			const state = await this.plugin.stateStore.load();
 			resetUploads(state);
 			await this.plugin.stateStore.save(state);
+			await this.plugin.notesStore.reset();
 		});
 		this.plugin.lastSearch = null;
 		await this.indexer.run();
@@ -345,7 +362,7 @@ export class IndexMaintenance {
 		const ok = await confirm(
 			this.plugin.app,
 			'Remove your data from TopK?',
-			'This deletes every page image and embedding this vault uploaded to TopK and stops automatic uploads until you run Index vault again. Other vaults in the same collection are not affected. Your files are not touched.',
+			'This deletes every page image, note and embedding this vault uploaded to TopK and stops automatic uploads until you run Index vault again. Other vaults in the same collection are not affected. Your files are not touched.',
 			'Remove',
 		);
 		if (!ok) return;
@@ -356,6 +373,7 @@ export class IndexMaintenance {
 				const state = await this.plugin.stateStore.load();
 				await this.plugin.purgeStaleCollections(state);
 				await client.deleteVault(state.vaultId);
+				await removeNotes(this.plugin);
 				state.hashes = {};
 				delete state.lastLsn;
 				delete state.needsPurge;
@@ -393,13 +411,14 @@ export class IndexMaintenance {
 			state.files = {};
 			resetUploads(state);
 			await this.plugin.stateStore.save(state);
+			await this.plugin.notesStore.reset(true);
 		});
 		this.plugin.lastSearch = null;
 		new Notice('Local index cleared.');
 	}
 }
 
-function confirm(app: App, title: string, body: string, cta: string): Promise<boolean> {
+export function confirm(app: App, title: string, body: string, cta: string): Promise<boolean> {
 	return new Promise((resolve) => new ConfirmModal(app, title, body, cta, resolve).open());
 }
 

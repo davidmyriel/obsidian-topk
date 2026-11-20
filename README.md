@@ -78,6 +78,11 @@ index** (re-uploads everything with the current settings), **Remove my data from
 
 Indexed file types: PDF, PNG, JPEG and WebP.
 
+**Search notes** (Settings, off by default) adds your Markdown notes: their text is uploaded in
+sections, and every search then shows matching notes in a **Notes** section above the pages.
+Clicking one opens the note at the matching heading. Note text is stored in TopK, so turn this on
+only for notes you're fine to upload; exclude patterns keep folders out.
+
 ## Network use and privacy
 
 The plugin connects only to the TopK endpoint for your region. It uploads an image of each page,

@@ -3,12 +3,14 @@ import { ReindexScheduler } from './indexer/scheduler';
 import { purgeStaleCollections, type IndexState } from './indexer/state';
 import { sourceKind } from './render/pageSource';
 import { IndexController, IndexMaintenance, IndexStatusModal, StateStore } from './indexing';
+import { NotesStore } from './notesIndexing';
 import { noteBaseName, resultsNote, type ResolvedResult } from './search/links';
 import { VisualSearchModal, type LastSearch } from './search/searchModal';
 import { TopKSettingTab } from './settings';
 import { loadSettings, nextCollectionName, type Settings } from './settingsModel';
 import type { TopKClient } from './topk/client';
 import { GrpcTopKClient } from './topk/grpcClient';
+import { GrpcNotesClient, notesCollection, type NotesClient } from './topk/notes';
 import { Logger } from './util/logger';
 
 /** The settings modal is not in the public API; this is the subset used to open our tab. */
@@ -21,6 +23,7 @@ export default class TopKVisualSearchPlugin extends Plugin {
 	declare settings: Settings;
 	readonly log = new Logger();
 	readonly stateStore = new StateStore(this);
+	readonly notesStore = new NotesStore(this);
 	indexer!: IndexController;
 	lastSearch: LastSearch | null = null;
 
@@ -94,6 +97,7 @@ export default class TopKVisualSearchPlugin extends Plugin {
 				this.app.vault.on('rename', (file, oldPath) => {
 					// Results follow a rename right away instead of after the next run (beta 1 F8).
 					void this.stateStore.rename(oldPath, file.path);
+					void this.notesStore.rename(oldPath, file.path);
 					changed(file);
 				}),
 			);
@@ -106,7 +110,11 @@ export default class TopKVisualSearchPlugin extends Plugin {
 
 	private isIndexable(file: TAbstractFile): boolean {
 		if (file instanceof TFolder) return true; // a folder rename or delete moves its files
-		return file instanceof TFile && sourceKind(file.extension) !== null;
+		if (!(file instanceof TFile)) return false;
+		return (
+			sourceKind(file.extension) !== null ||
+			(this.settings.indexNotes && file.extension === 'md')
+		);
 	}
 
 	openSearch(): void {
@@ -133,6 +141,18 @@ export default class TopKVisualSearchPlugin extends Plugin {
 		await this.app.workspace
 			.getLeaf(false)
 			.openFile(file, subpath ? { eState: { subpath } } : {});
+	}
+
+	/** Opens a note at the heading of the matching section (ADR-007). */
+	async openNote(note: { path: string; heading: string }): Promise<void> {
+		const file = this.app.vault.getFileByPath(note.path);
+		if (!file) {
+			new Notice(`${note.path} no longer exists.`);
+			return;
+		}
+		await this.app.workspace
+			.getLeaf(false)
+			.openFile(file, note.heading ? { eState: { subpath: `#${note.heading}` } } : {});
 	}
 
 	/** Writes the last search's results as a note of links and opens it. */
@@ -218,6 +238,21 @@ export default class TopKVisualSearchPlugin extends Plugin {
 			);
 		}
 		return this.createClient();
+	}
+
+	/** A notes client for the current settings (or another notes collection), or null without a key. */
+	createNotesClient(collection = notesCollection(this.settings.collection)): NotesClient | null {
+		const apiKey = this.apiKey();
+		if (!apiKey) {
+			this.notifyMissingKey();
+			return null;
+		}
+		return new GrpcNotesClient({
+			apiKey,
+			collection,
+			region: this.settings.region,
+			...(this.settings.endpoint ? { endpoint: this.settings.endpoint } : {}),
+		});
 	}
 
 	/** Deletes this vault's pages from collections it used before the setting changed (F11). */

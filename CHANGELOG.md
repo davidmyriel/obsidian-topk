@@ -5,6 +5,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Search notes** (off by default). Turn it on in settings to upload your Markdown notes, split
+  into sections at headings, to a separate TopK collection. Every search then shows matching notes
+  in a **Notes** section above the pages, and a result opens the note at the matching heading.
+  Quoted phrases and codes use TopK's hybrid search here too. Turning it on shows how many notes
+  will be uploaded and the cost (a 1,000-note vault costs about $0.05). Turning it off, or Remove
+  my data from TopK, deletes them. Note names and paths stay on your device (ADR-007).
+
 ## [2.0.0]
 
 Adds TopK's hybrid search for exact text. It changes what is stored in TopK, so the first index run

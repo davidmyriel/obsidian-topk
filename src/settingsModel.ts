@@ -30,6 +30,8 @@ export interface Settings {
 	concurrency: number;
 	/** Re-index in the background when files change and at startup (ADR-005). */
 	autoIndex: boolean;
+	/** Also upload Markdown notes and search them (ADR-007). Off unless the user opts in. */
+	indexNotes: boolean;
 	debugLog: boolean;
 	/** Set once the user has confirmed the first-run upload dialog. */
 	uploadConsent: boolean;
@@ -50,6 +52,7 @@ export function defaultSettings(configDir: string): Settings {
 		maxPixels: MODEL_MAX_PIXELS,
 		concurrency: 4,
 		autoIndex: true,
+		indexNotes: false,
 		debugLog: false,
 		uploadConsent: false,
 		vaultId: '',
@@ -129,6 +132,7 @@ export function loadSettings(raw: unknown, configDir: string): Settings {
 		s.concurrency = Math.min(raw.concurrency, 8);
 	}
 	if (typeof raw.autoIndex === 'boolean') s.autoIndex = raw.autoIndex;
+	if (typeof raw.indexNotes === 'boolean') s.indexNotes = raw.indexNotes;
 	if (typeof raw.debugLog === 'boolean') s.debugLog = raw.debugLog;
 	if (typeof raw.uploadConsent === 'boolean') s.uploadConsent = raw.uploadConsent;
 	if (typeof raw.vaultId === 'string') s.vaultId = raw.vaultId;

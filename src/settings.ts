@@ -1,6 +1,8 @@
 import { Notice, PluginSettingTab, SecretComponent, Setting, type App } from 'obsidian';
 import type TopKVisualSearchPlugin from './main';
-import { parseList } from './indexer/globs';
+import { compileFilter, parseList } from './indexer/globs';
+import { confirm } from './indexing';
+import { removeNotes as deleteNotes } from './notesIndexing';
 import { collectionNameError, endpointError, PIXEL_BUDGETS, REGIONS } from './settingsModel';
 import { TopKError } from './topk/client';
 
@@ -98,6 +100,34 @@ export class TopKSettingTab extends PluginSettingTab {
 				t.setValue(s.autoIndex).onChange(async (value) => {
 					s.autoIndex = value;
 					await save();
+				}),
+			);
+
+		new Setting(containerEl)
+			.setName('Search notes')
+			.setDesc(
+				'Also upload the text of your Markdown notes to TopK and search them. Off by default: note text is stored in your TopK collection. File names and paths stay on this device.',
+			)
+			.addToggle((t) =>
+				t.setValue(s.indexNotes).onChange(async (value) => {
+					if (value === s.indexNotes) return;
+					const ok = value ? await this.confirmNotesOn() : await this.confirmNotesOff();
+					if (!ok) {
+						t.setValue(s.indexNotes);
+						return;
+					}
+					if (!value) {
+						try {
+							await this.plugin.indexer.whilePaused(() => deleteNotes(this.plugin));
+						} catch (err) {
+							new Notice(`Could not delete notes from TopK: ${String(err)}`, 10_000);
+							t.setValue(true);
+							return;
+						}
+					}
+					s.indexNotes = value;
+					await save();
+					if (value) void this.plugin.indexer.run();
 				}),
 			);
 
@@ -201,5 +231,34 @@ export class TopKSettingTab extends PluginSettingTab {
 					await save();
 				}),
 			);
+	}
+
+	/** Asks before uploading notes, with how many and roughly what it costs (ADR-007). */
+	private async confirmNotesOn(): Promise<boolean> {
+		const s = this.plugin.settings;
+		const include = compileFilter({
+			includeFolders: s.includeFolders,
+			excludeGlobs: s.excludeGlobs,
+		});
+		const notes = this.app.vault.getMarkdownFiles().filter((f) => include(f.path));
+		const bytes = notes.reduce((n, f) => n + f.stat.size, 0);
+		// About 4 characters per token; TopK lists text embedding at $0.05 per 1M tokens.
+		const cost = (bytes / 4 / 1e6) * 0.05;
+		const costText = cost < 0.01 ? 'less than $0.01' : `about $${cost.toFixed(2)}`;
+		return confirm(
+			this.app,
+			'Search your notes?',
+			`${notes.length.toLocaleString('en-US')} notes will be uploaded to TopK, split into sections, and stored in the collection "${s.collection}-notes" so they can be searched. Embedding them costs ${costText}. File names and folder paths stay on this device. Turning this off later deletes them from TopK.`,
+			'Upload notes',
+		);
+	}
+
+	private confirmNotesOff(): Promise<boolean> {
+		return confirm(
+			this.app,
+			'Stop searching notes?',
+			"This deletes this vault's notes from TopK. Your notes are not touched, and pages stay searchable.",
+			'Delete notes from TopK',
+		);
 	}
 }
