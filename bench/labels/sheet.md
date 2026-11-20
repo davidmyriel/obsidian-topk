@@ -55,3 +55,53 @@ without looking at `queries.jsonl`. Record it in `bench/labels/<your initials>.j
 - **q48** (plain_text): converting the seafloor geothermal heat flux into a buoyancy flux
 - **q49** (plain_text): having no MMU is no excuse for having no security on a microcontroller
 - **q50** (plain_text): the robot veered left because one wheel was faster and made corners only half the time
+- **v01** (diagram): diagram of four sectors working together
+- **v02** (diagram): figure of animals moving between habitats
+- **v03** (diagram): tree-based machine learning models explained
+- **v04** (diagram): physics toy used to show object boundaries
+- **v05** (diagram): how the public can take part in research
+- **v06** (diagram): how retrieval works with language models
+- **v07** (diagram): drawing of messy versus tidy code
+- **v08** (diagram): trade-offs between network requirements
+- **v09** (diagram): overview of the deepfake annotation method
+- **v10** (diagram): isolating tasks on a small chip
+- **v11** (diagram): how the FFT library is organised
+- **v12** (diagram): how new ideas are found in old texts
+- **v13** (chart): where test inputs come from
+- **v14** (chart): what the planet is made of
+- **v15** (chart): how well the immune prediction models do
+- **v16** (chart): where the traffic model gets it wrong
+- **v17** (chart): measuring how dark the night sky is
+- **v18** (chart): what a sick cow looks like in the data
+- **v19** (chart): testing chatbots on counting things in images
+- **v20** (chart): how smooth the optimisation problem is
+- **v21** (chart): ocean measurements near the bottom
+- **v22** (chart): how much metadata the songs have
+- **v23** (chart): is the Python version slower
+- **v24** (chart): political trends in congressional speeches
+- **v25** (table): comparison of previous methods
+- **v26** (table): summary of how the galaxies were classified
+- **v27** (table): results for filling in missing traffic data
+- **v28** (table): who needs to be in the study
+- **v29** (table): the data the cow study used
+- **v30** (table): which simulators can do what
+- **v31** (table): network simulation setup
+- **v32** (table): which audio features work best
+- **v33** (table): basic facts about the star and planet
+- **v34** (table): examples of words that changed meaning
+- **v35** (screenshot): example of testing a search engine
+- **v36** (screenshot): a real software cheating scandal
+- **v37** (screenshot): how to log in
+- **v38** (screenshot): tool that turns papers into a podcast
+- **v39** (screenshot): why datasets matter
+- **v40** (screenshot): browsing music by genre
+- **v41** (plain_text): is the planet squashed by tides
+- **v42** (plain_text): what could go wrong with automation in education
+- **v43** (plain_text): settings used for the language models
+- **v44** (plain_text): tuning the anomaly detector
+- **v45** (plain_text): what the light pollution talk concluded
+- **v46** (plain_text): why research code gets messy
+- **v47** (plain_text): when to optimise code
+- **v48** (plain_text): how much heat comes from the seafloor
+- **v49** (plain_text): security without a memory management unit
+- **v50** (plain_text): problems driving the robot
