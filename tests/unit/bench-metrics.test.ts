@@ -37,6 +37,12 @@ describe('bench metrics', () => {
 	});
 });
 
+it('counts a multi-page chunk as correct when it contains the page', () => {
+	const chunk = { file: 'a.pdf', page: 1, pages: [1, 2, 3, 4, 5, 6] };
+	expect(recallAt([chunk], rel, 1)).toBe(1);
+	expect(recallAt([{ ...chunk, pages: [7, 8] }], rel, 1)).toBe(0);
+});
+
 describe('bootstrapCi', () => {
 	it('brackets the mean and is reproducible', () => {
 		const values = [...Array<number>(40).fill(1), ...Array<number>(10).fill(0)];
