@@ -14,7 +14,7 @@ be a deliberate choice by the user.
 
 1. **Opt-in.** A setting, **Search notes**, is off by default. Turning it on opens a dialog that says
    how many notes will be uploaded, that their text is stored in TopK, and that file names and paths
-   stay on the device. **Include folders** and **Exclude patterns** apply to notes as they do to
+   are not sent as separate data (links and embeds inside a note's text are). **Include folders** and **Exclude patterns** apply to notes as they do to
    files.
 2. **A separate collection, `<collection>-notes`.** The page collection requires `page_image`, and
    schemas can't be changed (ADR-006), so notes get their own:

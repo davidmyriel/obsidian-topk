@@ -14,7 +14,9 @@ first; `docs/ARCHITECTURE.md` and `docs/adr/` explain the design.
 
 - Never commit API keys. Live tests and the benchmark read `TOPK_API_KEY` (and `GEMINI_API_KEY`)
   from the environment or the git-ignored `.env`.
-- File names and paths never leave the device; only page images, page text and queries go to TopK.
+- File names and paths are never sent as separate data: TopK gets page images, page text, queries
+  and, when the user turns on Search notes, note text. Text inside those (such as links in notes)
+  goes with it, so don't promise more than that in docs or UI.
 - Talk to TopK through `src/topk/` (its own gRPC client over Node `http2`, see ADR-001); Obsidian's
   `requestUrl` cannot do HTTP/2. Don't guess API names: check `vendor/topk-protos` and
   docs.topk.io.

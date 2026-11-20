@@ -511,7 +511,9 @@ class FirstRunModal extends Modal {
 		list.createEl('li', {
 			text: 'Each page is sent as an image, with the text of PDF pages, and stored in TopK so it can be searched.',
 		});
-		list.createEl('li', { text: 'File names and folder paths stay on this device.' });
+		list.createEl('li', {
+			text: 'File names and folder paths are not sent as separate data; text written on a page is.',
+		});
 		list.createEl('li', { text: costSentence(plan.totalPages) });
 		new Setting(contentEl)
 			.addButton((b) => b.setButtonText('Cancel').onClick(() => this.finish(false)))

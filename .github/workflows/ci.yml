@@ -11,6 +11,7 @@ permissions:
 jobs:
     check:
         runs-on: ubuntu-latest
+        timeout-minutes: 20
         steps:
             - uses: actions/checkout@v6
             - uses: actions/setup-node@v6
@@ -21,9 +22,27 @@ jobs:
             - run: npm run check # includes the bundle check: size, hosts, no eval
             # Shipped code only: dev-only advisories (WebdriverIO toolchain) are tracked in ADR-004.
             - run: npm audit --omit=dev --audit-level=high
+            # An installable build of this commit, for trying a PR in Obsidian.
+            - name: Upload test build
+              id: build
+              uses: actions/upload-artifact@v4
+              with:
+                  name: topk-visual-search-${{ github.sha }}
+                  path: |
+                      main.js
+                      manifest.json
+                      styles.css
+                  retention-days: 14
+            - name: Link the test build
+              run: |
+                  {
+                    echo "### Test build"
+                    echo "[Download](${{ steps.build.outputs.artifact-url }}) and unzip into \`<vault>/.obsidian/plugins/topk-visual-search/\`, then reload Obsidian."
+                  } >> "$GITHUB_STEP_SUMMARY"
 
     e2e-linux:
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         steps:
             - uses: actions/checkout@v6
             - uses: actions/setup-node@v6

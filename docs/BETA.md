@@ -39,6 +39,6 @@ needs lives in the plugin folder, which uninstalling deletes.
 
 ## Reporting
 
-Use the issue templates: **Bug report** or **Beta feedback**. Include the output of
+Use the issue templates: **Bug report** or **Feedback**. Include the output of
 **Show index status**, never your API key. For bugs, the **Debug log** setting adds details to the
 developer console without logging the key.

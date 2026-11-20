@@ -85,11 +85,13 @@ only for notes you're fine to upload; exclude patterns keep folders out.
 
 ## Network use and privacy
 
-The plugin connects only to the TopK endpoint for your region. It uploads an image of each page,
-and the text layer of each PDF page, which TopK stores in your collection so they can be searched,
-and the text of your queries. Images are
-redrawn before upload, so photo metadata such as GPS location is not sent. File names and folder
-paths never leave your device. There is no telemetry. See [docs/PRIVACY.md](docs/PRIVACY.md).
+The plugin connects only to TopK: the endpoint for your region, or a custom endpoint if you set
+one. It uploads an image of each page and the text layer of each PDF page, which TopK stores in your
+collection so they can be searched, and the text of your queries. With **Search notes** on, it also
+uploads note text. Images are redrawn before upload, so photo metadata such as GPS location is not
+sent. File names and folder paths are not sent as separate data, but anything written in an
+uploaded page or note is, including links like `[[Clients/Acme plan]]`. There is no telemetry. See
+[docs/PRIVACY.md](docs/PRIVACY.md).
 
 Run **Remove my data from TopK** before uninstalling: the id that finds this vault's pages lives in
 the plugin folder, which uninstalling deletes.
@@ -116,6 +118,15 @@ npm run build
 
 Design notes are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and the decisions in
 [docs/adr](docs/adr).
+
+## Documentation
+
+- [Settings and troubleshooting](docs/CONFIGURATION.md)
+- [Privacy: what is sent to TopK](docs/PRIVACY.md)
+- [Installing with BRAT](docs/BETA.md)
+- [Contributing](.github/CONTRIBUTING.md) and [security reports](.github/SECURITY.md)
+- [Architecture](docs/ARCHITECTURE.md), [design decisions](docs/adr), [releasing](docs/RELEASING.md)
+- [Benchmark](bench/README.md)
 
 ## License
 
