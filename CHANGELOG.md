@@ -5,7 +5,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-Candidate for 2.0.0: it changes what is stored in TopK and re-uploads every page once.
+## [2.0.0]
+
+Adds TopK's hybrid search for exact text. It changes what is stored in TopK, so the first index run
+after upgrading re-uploads every page once (about $0.08 per 1,000 pages).
 
 ### Added
 
