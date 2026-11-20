@@ -28,6 +28,8 @@ Example of the promise: a query for "slide with the reranker architecture diagra
 
 ### Rules for the Claude Code instance
 
+Current, shorter rules for any agent are in `AGENTS.md`; these are the original rules for Stages 0–3.
+
 1. Work one stage at a time. Start the next stage only when the current stage's exit criteria pass.
 2. One task per branch and PR. Every PR adds tests, and `npm run check` (lint, typecheck, unit, contract, integration, build) is green.
 3. Never guess TopK SDK or API names. Read the installed `topk-js` package (Dave has 0.16.1 locally) and docs.topk.io, then record findings in `docs/spikes/`.
