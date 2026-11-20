@@ -104,7 +104,7 @@ function report(results: SetupResult[], queries: Query[], skipped: string[]): st
 		'',
 		labelled === queries.length
 			? 'All answers are labelled by two people.'
-			: `**Answers are drafts** (${labelled} of ${queries.length} labelled). Claude wrote the queries and answers from rendered pages and checked them for look-alikes. They are not yet labelled independently by two people (PLAN.md), and their author knew which systems were being tested.`,
+			: `**Answers are drafts** (${labelled} of ${queries.length} labelled). Claude wrote the queries and answers from rendered pages and checked them for look-alikes. They are not yet labelled independently by two people (docs/PLAN.md), and their author knew which systems were being tested.`,
 		'',
 		'The small numbers after each recall figure are its 95% bootstrap range over queries.',
 		'',

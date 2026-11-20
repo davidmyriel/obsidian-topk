@@ -1,9 +1,9 @@
 // Spike A: prove the bundled gRPC transport reaches TopK from Node.
 // Without TOPK_API_KEY it expects a well-formed gRPC auth error. With a key, NOT_FOUND for a
 // collection that does not exist proves the key works.
-// Usage: npx tsx scripts/spike-a-transport.ts [region]
-import { CollectionService } from '../src/topk/gen/topk/control/v1/collection_service_pb';
-import { GrpcCode, GrpcError, GrpcTransport, regionOrigin } from '../src/topk/grpc';
+// Usage: npx tsx scripts/spikes/spike-a-transport.ts [region]
+import { CollectionService } from '../../src/topk/gen/topk/control/v1/collection_service_pb';
+import { GrpcCode, GrpcError, GrpcTransport, regionOrigin } from '../../src/topk/grpc';
 
 const region = process.argv[2] ?? process.env.TOPK_REGION ?? 'aws-us-east-1-elastica';
 const key = process.env.TOPK_API_KEY;

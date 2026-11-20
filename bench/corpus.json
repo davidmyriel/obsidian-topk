@@ -1,5 +1,5 @@
 {
-	"description": "Benchmark corpus for TopK Visual Search (PLAN.md Stage 3). Files are downloaded from their sources by `npm run bench:fetch`; each keeps the licence recorded here.",
+	"description": "Benchmark corpus for TopK Visual Search (docs/PLAN.md Stage 3). Files are downloaded from their sources by `npm run bench:fetch`; each keeps the licence recorded here.",
 	"files": [
 		{
 			"file": "papers/identifying-emerging-concepts-in-large-corpora.pdf",

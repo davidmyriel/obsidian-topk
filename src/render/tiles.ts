@@ -1,7 +1,7 @@
 // Tall images (screenshots, infographics) are split into page-shaped tiles before embedding, so
 // each part keeps enough detail. Pure geometry; see pageSource.ts for the rendering.
 
-/** Images taller than this many times their width are tiled (PLAN.md Stage 2). */
+/** Images taller than this many times their width are tiled (docs/PLAN.md Stage 2). */
 export const TALL_RATIO = 2.5;
 /** Tile height as a multiple of the width: A4 portrait. */
 export const TILE_ASPECT = Math.SQRT2;

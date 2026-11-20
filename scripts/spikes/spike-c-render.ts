@@ -1,13 +1,13 @@
 // Spike C: time and memory for rendering PDF pages in Node at one long-side resolution.
 // Run once per resolution so each run has its own process and peak RSS:
-//   npx tsx scripts/spike-c-render.ts <file.pdf> <longSide> [maxPages]
+//   npx tsx scripts/spikes/spike-c-render.ts <file.pdf> <longSide> [maxPages]
 import { readFileSync } from 'node:fs';
-import { renderPdfPages } from '../src/render/pdfRenderer';
+import { renderPdfPages } from '../../src/render/pdfRenderer';
 import {
 	loadNodePdfJs,
 	nodeCanvasFactory,
 	nodeDocumentOptions,
-} from '../tests/support/node-render';
+} from '../../tests/support/node-render';
 
 const [file, longSideArg, maxPagesArg] = process.argv.slice(2);
 if (!file || !longSideArg) {

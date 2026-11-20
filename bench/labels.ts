@@ -1,4 +1,4 @@
-// Blind labelling for bench/queries.jsonl (PLAN.md Stage 3: two people label independently).
+// Blind labelling for bench/queries.jsonl (docs/PLAN.md Stage 3: two people label independently).
 //
 //   npm run bench:labels -- sheet           write bench/labels/sheet.md: queries only, no answers
 //   npm run bench:labels -- compare A B     compare bench/labels/A.json and B.json with each

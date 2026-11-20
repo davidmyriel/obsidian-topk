@@ -2,17 +2,17 @@
 // Creates a throwaway collection, upserts a few text documents, runs keyword queries, prints what
 // matched, and deletes the collection.
 //
-//   TOPK_API_KEY=... npx tsx scripts/spike-f-keyword.ts [--region aws-us-east-1-elastica]
+//   TOPK_API_KEY=... npx tsx scripts/spikes/spike-f-keyword.ts [--region aws-us-east-1-elastica]
 import { randomUUID } from 'node:crypto';
 import { parseArgs } from 'node:util';
-import { CollectionService } from '../src/topk/gen/topk/control/v1/collection_service_pb';
-import { QueryService } from '../src/topk/gen/topk/data/v1/query_service_pb';
-import { WriteService } from '../src/topk/gen/topk/data/v1/write_service_pb';
-import { LogicalExpr_BinaryOp_Op } from '../src/topk/gen/topk/data/v1/expr/logical_pb';
-import { Stage_SortStage_SortOrder } from '../src/topk/gen/topk/data/v1/query_pb';
-import { KeywordIndexType } from '../src/topk/gen/topk/control/v1/schema_pb';
-import { GrpcError, GrpcTransport, regionOrigin } from '../src/topk/grpc';
-import { loadDotEnv } from '../bench/runners/types';
+import { CollectionService } from '../../src/topk/gen/topk/control/v1/collection_service_pb';
+import { QueryService } from '../../src/topk/gen/topk/data/v1/query_service_pb';
+import { WriteService } from '../../src/topk/gen/topk/data/v1/write_service_pb';
+import { LogicalExpr_BinaryOp_Op } from '../../src/topk/gen/topk/data/v1/expr/logical_pb';
+import { Stage_SortStage_SortOrder } from '../../src/topk/gen/topk/data/v1/query_pb';
+import { KeywordIndexType } from '../../src/topk/gen/topk/control/v1/schema_pb';
+import { GrpcError, GrpcTransport, regionOrigin } from '../../src/topk/grpc';
+import { loadDotEnv } from '../../bench/runners/types';
 
 loadDotEnv();
 const { values } = parseArgs({
