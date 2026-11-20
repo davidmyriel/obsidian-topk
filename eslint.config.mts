@@ -3,7 +3,12 @@ import globals from 'globals';
 import { globalIgnores, defineConfig } from 'eslint/config';
 
 // The core (indexer, render, topk) must run in plain Node tests, so it may not import obsidian.
-const CORE_DIRS = ['src/indexer/**/*.ts', 'src/render/**/*.ts', 'src/topk/**/*.ts'];
+const CORE_DIRS = [
+	'src/indexer/**/*.ts',
+	'src/notes/**/*.ts',
+	'src/render/**/*.ts',
+	'src/topk/**/*.ts',
+];
 
 export default defineConfig(
 	globalIgnores([
