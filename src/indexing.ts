@@ -14,6 +14,7 @@ import {
 	runIndex,
 	type IndexOptions,
 	type IndexPlan,
+	type IndexSummary,
 	type VaultReader,
 } from './indexer/indexer';
 import { progressText, summaryText } from './indexer/progress';
@@ -28,6 +29,8 @@ import {
 import { indexStatus } from './indexer/status';
 import { costSentence } from './util/cost';
 import { notesSummaryText, removeNotes, runNotes } from './notesIndexing';
+import { MAX_CHUNKS } from './notes/chunk';
+import { notePathsByHash } from './notes/indexer';
 import type { PdfJsLike } from './render/pdfRenderer';
 import type { RenderEnv } from './render/pageSource';
 import { TopKError } from './topk/client';
@@ -205,7 +208,8 @@ export class IndexController {
 		}
 		if (background) {
 			const s = this.plugin.settings;
-			if (!s.autoIndex || !s.uploadConsent || !this.plugin.apiKey()) return;
+			// Notes have their own opt-in (ADR-007), so a notes-only vault updates in the background too.
+			if (!s.autoIndex || !(s.uploadConsent || s.indexNotes) || !this.plugin.apiKey()) return;
 		}
 		this.current = this.runOnce(background, options.retryFailed ?? false).finally(
 			() => (this.current = null),
@@ -264,41 +268,58 @@ export class IndexController {
 				pages: plan.totalPages,
 				unchanged: plan.unchanged,
 			});
+			// Pages need the first-upload consent. Without it, pages wait while notes, which have
+			// their own opt-in, still run (audit A03).
+			let uploadPages = true;
 			if (plan.work.length > 0 && !this.plugin.settings.uploadConsent) {
-				if (background) return;
-				this.statusEl.hide();
-				if (
-					!(await confirmFirstUpload(
-						this.plugin.app,
-						plan,
-						this.plugin.settings.collection,
-					))
-				) {
-					new Notice('Nothing was uploaded.');
-					return;
+				if (background) uploadPages = false;
+				else {
+					this.statusEl.hide();
+					if (
+						await confirmFirstUpload(
+							this.plugin.app,
+							plan,
+							this.plugin.settings.collection,
+						)
+					) {
+						this.plugin.settings.uploadConsent = true;
+						await this.plugin.saveSettings();
+					} else {
+						new Notice('No pages were uploaded.');
+						uploadPages = false;
+					}
+					this.statusEl.show();
 				}
-				this.plugin.settings.uploadConsent = true;
-				await this.plugin.saveSettings();
-				this.statusEl.show();
 			}
+			if (!uploadPages && !this.plugin.settings.indexNotes) return;
 			// Outages pause the run instead of failing it; each retry re-plans, skipping finished files.
-			const summary = await runUntilDone(
-				(attempt) =>
-					attempt === 0 ? runIndex(deps, options, plan) : runIndex(deps, options),
-				{
-					signal: controller.signal,
-					waitForRetry: (signal) => waitForConnection(signal),
-					onPause: (err) => {
-						this.plugin.log.debug('index paused', err.kind, err.message);
-						this.textEl.setText(
-							err.kind === 'rate_limit'
-								? 'TopK is busy, resuming shortly…'
-								: 'Offline, will resume when connected…',
-						);
-					},
-					onResume: () => this.textEl.setText('Resuming…'),
-				},
-			);
+			const summary: IndexSummary = !uploadPages
+				? {
+						filesIndexed: 0,
+						filesUnchanged: plan.unchanged,
+						pagesUploaded: 0,
+						pagesDeleted: 0,
+						skipped: [],
+						failed: [],
+						cancelled: false,
+					}
+				: await runUntilDone(
+						(attempt) =>
+							attempt === 0 ? runIndex(deps, options, plan) : runIndex(deps, options),
+						{
+							signal: controller.signal,
+							waitForRetry: (signal) => waitForConnection(signal),
+							onPause: (err) => {
+								this.plugin.log.debug('index paused', err.kind, err.message);
+								this.textEl.setText(
+									err.kind === 'rate_limit'
+										? 'TopK is busy, resuming shortly…'
+										: 'Offline, will resume when connected…',
+								);
+							},
+							onResume: () => this.textEl.setText('Resuming…'),
+						},
+					);
 			// Notes come after pages, in the same run (ADR-007).
 			const notes =
 				summary.cancelled || controller.signal.aborted
@@ -560,6 +581,24 @@ export class IndexStatusModal extends Modal {
 		}
 		this.list('Failed', status.failed);
 		this.list('Skipped', status.skipped);
+		if (this.plugin.settings.indexNotes) {
+			const notes = await this.plugin.notesStore.load();
+			const paths = notePathsByHash(notes);
+			const indexed = Object.values(notes.notes).filter((e) => e.status === 'indexed');
+			contentEl.createEl('p', {
+				text: `${n(indexed.length)} notes indexed in "${notes.collection}".`,
+			});
+			// Notes over the section limit are only partly searchable (audit A06).
+			this.list(
+				'Notes indexed in part',
+				Object.entries(notes.notes)
+					.filter(([, e]) => e.truncated)
+					.map(([hash]) => ({
+						path: paths.get(hash)?.[0] ?? hash,
+						reason: `only the first ${MAX_CHUNKS} sections are searchable`,
+					})),
+			);
+		}
 		const buttons = new Setting(contentEl);
 		if (status.failed.length > 0) {
 			buttons.addButton((b) =>
