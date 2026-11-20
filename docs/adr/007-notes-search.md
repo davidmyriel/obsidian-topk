@@ -42,7 +42,9 @@ be a deliberate choice by the user.
 5. **Search.** When notes are indexed, every search also queries the notes collection:
    `semantic_similarity(note_text, q)`. For exact parts (ADR-006: quotes and letter+digit codes) it
    uses TopK's one-query hybrid, a `match` filter on `note_keywords` with BM25 added to the score.
-   Notes appear in their own **Notes** section above the pages (top 5). MaxSim scores on page
+   Notes appear in their own **Notes** section above the pages (top 5), keeping only notes that score
+   at least 70% of the best note's score (exact matches always stay): semantic search always
+   returns its top k, however weak. MaxSim scores on page
    images and similarity scores on note text are not comparable, so the lists are not merged.
 6. **Maintenance.** Rebuild index, Remove my data from TopK and Clear local index cover notes too.
    Turning the setting off deletes this vault's notes from TopK.

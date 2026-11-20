@@ -12,7 +12,9 @@ All notable changes to this project are documented here. The format follows
   in a **Notes** section above the pages, and a result opens the note at the matching heading.
   Quoted phrases and codes use TopK's hybrid search here too. Turning it on shows how many notes
   will be uploaded and the cost (a 1,000-note vault costs about $0.05). Turning it off, or Remove
-  my data from TopK, deletes them. Note names and paths stay on your device (ADR-007).
+  my data from TopK, deletes them. Note names and paths stay on your device (ADR-007). Notes that
+  score well below the best match are left out, so a search about a page doesn't list loosely
+  related notes.
 
 ## [2.0.0]
 
