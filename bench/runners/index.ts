@@ -81,6 +81,11 @@ const TIERS: { id: Query['tier']; title: string; about: string }[] = [
 		title: 'Vague queries',
 		about: 'The same targets as a half-remembered description of 3–8 words, with no colours, numbers or names. Several pages can fit a vague query, but only the original page counts, so these scores are a lower bound.',
 	},
+	{
+		id: 'exact',
+		title: 'Exact queries',
+		about: 'Built around an identifier, code or quoted phrase that appears in the text of the target page and no other page (ADR-006). One target, "Datasets Over Algorithms", exists only inside a screenshot, with no text layer.',
+	},
 ];
 
 function report(results: SetupResult[], queries: Query[], skipped: string[]): string {
@@ -165,7 +170,7 @@ function recallSvg(results: SetupResult[], queries: Query[]): string {
 	const bottom = 230;
 	const top = 36;
 	const tiers = TIERS.filter((t) => queries.some((q) => q.tier === t.id));
-	const colors = ['#2f6fde', '#9bbcf5'];
+	const colors = ['#2f6fde', '#9bbcf5', '#e8913a'];
 	const group = (W - left - 20) / Math.max(1, results.length);
 	const bar = Math.min(60, group / (tiers.length + 1));
 	const y = (v: number): number => bottom - v * (bottom - top);

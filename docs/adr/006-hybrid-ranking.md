@@ -1,7 +1,7 @@
 # ADR-006: Hybrid ranking
 
-- Status: Accepted by Dave on 2026-11-20. Spike F (`docs/spikes/F-keyword-index.md`) answered the
-  verify list.
+- Status: Accepted by Dave on 2026-11-20; **implementation deferred** by its own acceptance test (see
+  "Exact tier result"). Spike F (`docs/spikes/F-keyword-index.md`) answered the verify list.
 - Date: 2026-11-20
 
 ## Context
@@ -137,3 +137,29 @@ page's text (identifiers, acronyms, numbers, quoted phrases, such as `"Tonnetz f
    against the returned `page_text`.
 4. **Accents:** not folded, so the plugin stores and queries accent-folded text.
 5. **Size:** 100 KB of text per document is accepted. The plugin caps `page_text` at 100 KB.
+
+## Exact tier result (2026-11-20): not built yet
+
+The exact benchmark tier (`e01`–`e25`) holds 25 queries, each built around an identifier, code or
+quoted phrase found in the text of one page only. Examples are `bior1.3 wavelet`,
+`memory region 0x80400`, `NRSRAPID readout pattern` and `"premature optimization"`. One phrase,
+"Datasets Over Algorithms", exists only inside a screenshot. Visual search alone already does well:
+
+| Setup                   | Recall@1 | Recall@5 |
+| ----------------------- | -------- | -------- |
+| Text layer + BM25       | 84%      | 92%      |
+| TopK only (no keywords) | 92%      | 100%     |
+
+The acceptance test needed a gain of 15 points or more; with TopK at 92%, at most 8 are possible.
+topk-embed-v1 reads printed identifiers well. Its two misses still put the right page second: a
+quoted phrase, and a grid label inside a plot. Text search missed the screenshot-only phrase
+entirely.
+
+**Decision:** don't build exact text matching now. Keep the design, the spike and the exact tier;
+revisit if:
+
+- users report exact-match misses, especially in large vaults with many near-identical codes
+  (`INV-2290` against `INV-2291` on different pages), which this corpus doesn't test; or
+- the exact tier grows with such cases and TopK drops well below its current score.
+
+The cheapest next test is a "near-duplicate identifiers" tier, built from a corpus that has them.
