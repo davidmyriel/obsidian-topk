@@ -10,6 +10,8 @@ export interface ResolvedResult {
 	contentHash: string;
 	/** Moved up because the file name contains the words of a short query (nameMatch.ts). */
 	nameMatch?: boolean;
+	/** The page's text contains the query's exact terms and phrases (ADR-006). */
+	exactMatch?: boolean;
 }
 
 /** Link text that opens a PDF at its page, e.g. "Talks/talk.pdf#page=15". Images link to the file. */

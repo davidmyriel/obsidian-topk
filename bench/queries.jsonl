@@ -123,3 +123,13 @@
 {"id": "e23", "query": "SSVEP", "category": "plain_text", "answers": [{"file": "slides/open-science-framework-a-practical-guide.pdf", "pages": [4]}], "status": "draft", "tier": "exact"}
 {"id": "e24", "query": "\"centralized training but decentralized execution\"", "category": "plain_text", "answers": [{"file": "papers/learning-multi-agent-multi-machine-tending-by.pdf", "pages": [3]}], "status": "draft", "tier": "exact"}
 {"id": "e25", "query": "\"Datasets Over Algorithms\"", "category": "screenshot", "answers": [{"file": "slides/fma-a-dataset-for-music-analysis-data-jam-slides.pdf", "pages": [2]}], "status": "draft", "tier": "exact"}
+{"id":"n01","query":"invoice INV-2297","category":"table","answers":[{"file":"invoices/invoice-08.pdf","pages":[1]}],"status":"draft","tier":"near-duplicate"}
+{"id":"n02","query":"invoice INV-2301","category":"table","answers":[{"file":"invoices/invoice-09.pdf","pages":[1]}],"status":"draft","tier":"near-duplicate"}
+{"id":"n03","query":"INV-2290","category":"table","answers":[{"file":"invoices/invoice-16.pdf","pages":[1]}],"status":"draft","tier":"near-duplicate"}
+{"id":"n04","query":"invoice number INV-2305","category":"table","answers":[{"file":"invoices/invoice-15.pdf","pages":[1]}],"status":"draft","tier":"near-duplicate"}
+{"id":"n05","query":"the INV-2309 invoice","category":"table","answers":[{"file":"invoices/invoice-07.pdf","pages":[1]}],"status":"draft","tier":"near-duplicate"}
+{"id":"n06","query":"invoice INV-2294 total due","category":"table","answers":[{"file":"invoices/invoice-17.pdf","pages":[1]}],"status":"draft","tier":"near-duplicate"}
+{"id":"n07","query":"Blue Harbor Labs invoice INV-2302","category":"table","answers":[{"file":"invoices/invoice-11.pdf","pages":[1]}],"status":"draft","tier":"near-duplicate"}
+{"id":"n08","query":"invoice INV-2296 for Granite Peak Media","category":"table","answers":[{"file":"invoices/invoice-12.pdf","pages":[1]}],"status":"draft","tier":"near-duplicate"}
+{"id":"n09","query":"invoice for Tidewater Supply issued 2026-01-19","category":"table","answers":[{"file":"invoices/invoice-19.pdf","pages":[1]}],"status":"draft","tier":"near-duplicate"}
+{"id":"n10","query":"invoice for Granite Peak Media with total €9,265.00","category":"table","answers":[{"file":"invoices/invoice-10.pdf","pages":[1]}],"status":"draft","tier":"near-duplicate"}

@@ -13,6 +13,7 @@ import { parseArgs } from 'node:util';
 import { countPages, sourceKind } from '../src/render/pageSource';
 import { nodeRenderEnv } from '../tests/support/nodeVault';
 import { CORPUS_DIR, CORPUS_JSON, readCorpus } from './corpus';
+import { invoicePdf, invoices } from './invoices';
 
 const USER_AGENT = 'obsidian-topk-bench/0.1 (benchmark corpus fetcher)';
 const sha256 = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
@@ -35,6 +36,15 @@ async function download(url: string): Promise<Uint8Array> {
 	}
 }
 
+/** Builds one of the synthetic invoices (bench/invoices.ts) instead of downloading it. */
+async function generatedInvoice(file: string): Promise<Uint8Array> {
+	const list = invoices();
+	const index = list.findIndex((inv) => `invoices/${inv.file}` === file);
+	const invoice = list[index];
+	if (!invoice) throw new Error(`${file} is not one of the generated invoices`);
+	return invoicePdf(invoice, index);
+}
+
 async function main(): Promise<void> {
 	const { values } = parseArgs({ options: { record: { type: 'boolean', default: false } } });
 	const corpus = readCorpus();
@@ -47,6 +57,11 @@ async function main(): Promise<void> {
 		let bytes: Uint8Array | null = existsSync(dest) ? new Uint8Array(readFileSync(dest)) : null;
 		if (bytes && entry.sha256 && sha256(bytes) !== entry.sha256) bytes = null; // re-download
 		let downloaded = false;
+		if (!bytes && entry.url.startsWith('generated:invoices')) {
+			bytes = await generatedInvoice(entry.file);
+			downloaded = true;
+			fetched++;
+		}
 		if (!bytes) {
 			// arXiv asks for one request every few seconds; be as polite everywhere.
 			const host = new URL(entry.url).host;

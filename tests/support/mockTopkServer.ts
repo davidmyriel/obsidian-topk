@@ -17,6 +17,7 @@ import type { Value } from '../../src/topk/gen/topk/data/v1/value_pb';
 import {
 	createCollectionRequest,
 	IMAGE_FIELD,
+	TEXT_FIELD,
 	type PageDoc,
 	type PageKind,
 } from '../../src/topk/requests';
@@ -152,6 +153,7 @@ export async function startMockTopK(options: {
 						tile: int(d.fields.tile),
 						kind: str(d.fields.kind) as PageKind,
 						image: { format: img.value.data.case, bytes: img.value.data.value },
+						...(d.fields[TEXT_FIELD] ? { pageText: str(d.fields[TEXT_FIELD]) } : {}),
 					};
 				});
 				return create(
@@ -189,6 +191,7 @@ export async function startMockTopK(options: {
 			let query = '';
 			let vaultId = '';
 			let k = 10;
+			const exactTerms: string[] = [];
 			for (const { stage } of req.query?.stages ?? []) {
 				if (stage.case === 'select') {
 					const e = stage.value.exprs.score?.expr;
@@ -200,12 +203,19 @@ export async function startMockTopK(options: {
 					if (e?.case === 'logicalExpr' && e.value.expr.case === 'binaryOp') {
 						const right = e.value.expr.value.right?.expr;
 						if (right?.case === 'literal') vaultId = str(right.value);
+					} else if (e?.case === 'textExpr' && e.value.expr.case === 'terms') {
+						exactTerms.push(...e.value.expr.value.terms.map((t) => t.token));
 					}
 				} else if (stage.case === 'limit') {
 					k = Number(stage.value.k);
 				}
 			}
-			const hits = await fake.search(query, k, vaultId);
+			const hits = await fake.search(
+				query,
+				k,
+				vaultId,
+				exactTerms.length > 0 ? { exactTerms } : {},
+			);
 			return create(QueryService.method.query.output, {
 				results: hits.map((hit) => ({
 					fields: {
@@ -217,6 +227,13 @@ export async function startMockTopK(options: {
 						tile: { value: { case: 'i64' as const, value: BigInt(hit.tile) } },
 						kind: { value: { case: 'string' as const, value: hit.kind } },
 						score: { value: { case: 'f32' as const, value: hit.score } },
+						...(hit.pageText !== undefined
+							? {
+									[TEXT_FIELD]: {
+										value: { case: 'string' as const, value: hit.pageText },
+									},
+								}
+							: {}),
 					},
 				})),
 			});

@@ -1,5 +1,5 @@
 {
-  "name": "smoke-f1ba1b5a",
+  "name": "smoke-855eab43",
   "schema": {
     "vault_id": {
       "dataType": {
@@ -38,6 +38,16 @@
       "required": true,
       "index": {
         "semanticIndex": {}
+      }
+    },
+    "page_text": {
+      "dataType": {
+        "text": {}
+      },
+      "index": {
+        "keywordIndex": {
+          "indexType": "KEYWORD_INDEX_TYPE_TEXT"
+        }
       }
     }
   }

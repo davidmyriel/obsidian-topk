@@ -5,12 +5,21 @@ import { dirname, join } from 'node:path';
 export interface CorpusFile {
 	/** Path under bench/corpus/, which is also the vault path used by every setup. */
 	file: string;
+	/** Where the file comes from; `generated:invoices` files are built by bench/invoices.ts. */
 	url: string;
 	sha256?: string;
 	bytes?: number;
 	/** Pages the plugin indexes: PDF pages, or tiles for a tall image. */
 	pages?: number;
-	type: 'paper' | 'slides' | 'handwriting' | 'whiteboard' | 'screenshot' | 'chart' | 'scan';
+	type:
+		| 'paper'
+		| 'slides'
+		| 'invoice'
+		| 'handwriting'
+		| 'whiteboard'
+		| 'screenshot'
+		| 'chart'
+		| 'scan';
 	title: string;
 	author: string;
 	/** Human-readable page for the file, with its licence. */

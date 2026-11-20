@@ -18,6 +18,7 @@ import {
 	type PageKind,
 	type PingResult,
 	type SearchHit,
+	type SearchOptions,
 	type TopKClient,
 } from './client';
 import { GrpcCode, GrpcError, GrpcTransport, regionOrigin } from './grpc';
@@ -28,6 +29,7 @@ import {
 	deleteVaultRequest,
 	IMAGE_FIELD,
 	searchRequest,
+	TEXT_FIELD,
 	upsertPagesRequest,
 } from './requests';
 
@@ -63,7 +65,10 @@ export class GrpcTopKClient implements TopKClient {
 	async ping(): Promise<PingResult> {
 		const collection = await this.getCollection();
 		if (collection) assertSchema(collection);
-		return { collectionExists: collection !== null };
+		return {
+			collectionExists: collection !== null,
+			...(collection && !hasTextField(collection) ? { needsUpgrade: true } : {}),
+		};
 	}
 
 	async ensureCollection(): Promise<void> {
@@ -140,9 +145,9 @@ export class GrpcTopKClient implements TopKClient {
 		query: string,
 		k: number,
 		vaultId: string,
-		options: { requiredLsn?: string } = {},
+		options: SearchOptions = {},
 	): Promise<SearchHit[]> {
-		const req = searchRequest(query, vaultId, k);
+		const req = searchRequest(query, vaultId, k, options.exactTerms);
 		if (options.requiredLsn) req.requiredLsn = options.requiredLsn;
 		try {
 			const res = await this.call(QueryService.method.query, req, this.data);
@@ -199,6 +204,12 @@ export function assertSchema(collection: Collection): void {
 	}
 }
 
+/** Whether the collection has the page text field with a keyword index (ADR-006). */
+export function hasTextField(collection: Collection): boolean {
+	const field = collection.schema[TEXT_FIELD];
+	return field?.dataType?.dataType.case === 'text' && field.index?.index.case === 'keywordIndex';
+}
+
 function str(value: Value | undefined): string | undefined {
 	return value?.value.case === 'string' ? value.value.value : undefined;
 }
@@ -227,5 +238,14 @@ export function parseHit(doc: Document): SearchHit | null {
 	const score = num(f.score);
 	if (!id || !contentHash || page === undefined || score === undefined) return null;
 	if (!PAGE_KINDS.includes(kind as PageKind)) return null;
-	return { id, contentHash, page, tile: num(f.tile) ?? 0, kind: kind as PageKind, score };
+	const pageText = str(f[TEXT_FIELD]);
+	return {
+		id,
+		contentHash,
+		page,
+		tile: num(f.tile) ?? 0,
+		kind: kind as PageKind,
+		score,
+		...(pageText !== undefined ? { pageText } : {}),
+	};
 }

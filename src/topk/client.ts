@@ -9,13 +9,26 @@ export interface SearchHit {
 	page: number;
 	tile: number;
 	kind: PageKind;
-	/** Unnormalised MaxSim score; higher is better. */
+	/** Unnormalised MaxSim score (plus a little BM25 for exact-term searches); higher is better. */
 	score: number;
+	/** The page's stored text, returned only by exact-term searches (for phrase checks). */
+	pageText?: string;
+}
+
+export interface SearchOptions {
+	requiredLsn?: string;
+	/**
+	 * Only pages whose text contains every one of these tokens, ranked by TopK's one-query hybrid
+	 * of visual score and BM25 (ADR-006). Tokens are matched whole and ignore case.
+	 */
+	exactTerms?: string[];
 }
 
 export interface PingResult {
 	/** Whether the configured collection already exists (with a compatible schema). */
 	collectionExists: boolean;
+	/** The collection predates the page text field (ADR-006), so it must be replaced to search text. */
+	needsUpgrade?: boolean;
 }
 
 /** The plugin's only view of TopK. Implemented over gRPC and by an in-memory fake for tests. */
@@ -33,7 +46,7 @@ export interface TopKClient {
 		query: string,
 		k: number,
 		vaultId: string,
-		options?: { requiredLsn?: string },
+		options?: SearchOptions,
 	): Promise<SearchHit[]>;
 	close(): void;
 }
@@ -115,7 +128,8 @@ export function batchByBytes(pages: PageDoc[], maxBytes: number): PageDoc[][] {
 	let current: PageDoc[] = [];
 	let size = 0;
 	for (const page of pages) {
-		const bytes = page.image.bytes.length + 512;
+		// Text is counted at 4 bytes per character, the most UTF-8 can take.
+		const bytes = page.image.bytes.length + (page.pageText?.length ?? 0) * 4 + 512;
 		if (current.length > 0 && size + bytes > maxBytes) {
 			batches.push(current);
 			current = [];

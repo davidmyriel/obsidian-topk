@@ -19,7 +19,7 @@ export interface Query {
 	 * specific: names the page's distinctive details; vague: a half-remembered description;
 	 * exact: built around an identifier or quoted phrase that appears on that page only (ADR-006).
 	 */
-	tier: 'specific' | 'vague' | 'exact';
+	tier: 'specific' | 'vague' | 'exact' | 'near-duplicate';
 	/** For a vague query, the specific query with the same target. */
 	of?: string;
 }

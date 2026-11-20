@@ -2,6 +2,8 @@
 // Obsidian passes the result of loadPdfJs() and DOM canvases, Node tests pass pdfjs-dist and
 // @napi-rs/canvas. Only the subset of the pdf.js API used here is typed.
 
+import { textFromItems } from '../search/exact';
+
 export interface PdfViewport {
 	width: number;
 	height: number;
@@ -83,6 +85,8 @@ export interface RenderedPage {
 	bytes: Uint8Array;
 	renderMs: number;
 	encodeMs: number;
+	/** The page's text layer, as pdf.js extracts it (empty for scans). */
+	text: string;
 }
 
 export class ImageTooLargeError extends Error {
@@ -175,6 +179,7 @@ export async function* renderPdfPages(
 				}).promise;
 				const t1 = now();
 				const { bytes, quality } = await encodeWithinLimit(target, n, options);
+				const text = textFromItems((await page.getTextContent()).items);
 				yield {
 					page: n,
 					width,
@@ -184,6 +189,7 @@ export async function* renderPdfPages(
 					bytes,
 					renderMs: t1 - t0,
 					encodeMs: now() - t1,
+					text,
 				};
 			} finally {
 				target.release();

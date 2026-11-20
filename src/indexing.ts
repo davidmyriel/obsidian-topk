@@ -214,7 +214,11 @@ export class IndexController {
 	private current: Promise<void> | null = null;
 
 	private async runOnce(background: boolean, retryFailed: boolean): Promise<void> {
-		const client = this.plugin.createClient();
+		// A collection from before page text (ADR-006) is replaced first; see upgradeCollection().
+		const client = await this.plugin.upgradeCollection().catch((err: unknown) => {
+			this.plugin.log.debug('collection upgrade check failed', String(err));
+			return this.plugin.createClient();
+		});
 		if (!client) return;
 		const controller = new AbortController();
 		this.controller = controller;
@@ -458,7 +462,7 @@ class FirstRunModal extends Modal {
 		});
 		const list = contentEl.createEl('ul');
 		list.createEl('li', {
-			text: 'Each page is sent as an image and stored in TopK so it can be searched.',
+			text: 'Each page is sent as an image, with the text of PDF pages, and stored in TopK so it can be searched.',
 		});
 		list.createEl('li', { text: 'File names and folder paths stay on this device.' });
 		list.createEl('li', { text: costSentence(plan.totalPages) });
