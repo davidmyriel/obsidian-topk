@@ -26,11 +26,29 @@ intact, and fails if any file's SHA-256 differs from the manifest. Adding an ent
 **Attribution.** Reuse of any file follows its own licence, as recorded in `corpus.json`. Reports
 and screenshots that show a page must credit its author and licence.
 
+## Queries
+
+`queries.jsonl` has 50 queries: 12 diagram, 12 chart, 10 table, 6 screenshot and 10 plain text
+(the control). They point at 25 of the 35 files, and the rest act as distractors. Each line holds
+the query, its category and a drafted answer (`file`, 1-based `pages`) with `status: "draft"`.
+
+The drafts were written by Claude from rendered pages and checked against look-alike pages in the
+same files. PLAN.md asks for two people to label every query independently, so the drafts are not
+ground truth yet:
+
+1. `npm run bench:labels -- sheet` writes `labels/sheet.md`, the queries without answers.
+2. Each labeller finds the page for each query and saves `labels/<initials>.json`, as
+   `{ "q01": { "file": "papers/….pdf", "pages": [13] }, … }`, or `null` when no page matches.
+3. `npm run bench:labels -- compare AB CD` writes `labels/comparison.md` with every query where
+   the two labellers disagree, next to the draft.
+4. Resolve those disagreements, set the agreed `answers` in `queries.jsonl` and change `status` to
+   `"labelled"`.
+
 ## Still to do
 
 - Handwriting, whiteboard and screenshot files. The papers and slides cover diagrams, charts,
-  tables and plain text only. Wikimedia Commons was tried, but it throttles scripts that do not
-  identify a contact in their user agent, so those files were left out for now.
-- `queries.jsonl`: 50 queries with the correct file and page(s) and a category (diagram, chart,
-  table, handwriting, screenshot, plain text), labelled independently by two people.
+  tables and plain text, plus screenshots that appear inside slides. Wikimedia Commons was tried,
+  but it throttles scripts that do not name a contact in their user agent, so those files were left
+  out for now.
+- Two independent labels per query (see above).
 - Runners for each setup and `npm run bench`.
