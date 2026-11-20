@@ -3,6 +3,8 @@
 export interface PageRef {
 	file: string;
 	page: number;
+	/** For a multi-page result (a chunk): every page it covers. It is correct if any one is. */
+	pages?: number[];
 }
 
 export interface Relevant {
@@ -11,7 +13,9 @@ export interface Relevant {
 }
 
 const hit = (r: PageRef, relevant: Relevant[]): boolean =>
-	relevant.some((a) => a.file === r.file && a.pages.includes(r.page));
+	relevant.some(
+		(a) => a.file === r.file && (r.pages ?? [r.page]).some((p) => a.pages.includes(p)),
+	);
 
 /** Distinct relevant pages, so a two-page answer counts as two relevant items. */
 const relevantCount = (relevant: Relevant[]): number =>
