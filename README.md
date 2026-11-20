@@ -4,71 +4,108 @@ Find the exact PDF page or image in your vault by describing what it looks like.
 Type "slide with the reranker architecture diagram" and get `talk.pdf`, page 15, with a thumbnail.
 Click it and Obsidian opens that page.
 
-The plugin uses [TopK](https://topk.io)'s hosted multimodal embeddings (topk-embed-v1), which read
-each page as an image, so charts, diagrams, tables, screenshots and scans are searchable without
-OCR.
+<!-- Add docs/images/demo.gif (the Stage 1 demo recording), then uncomment:
+![Visual search in Obsidian](docs/images/demo.gif)
+-->
 
-> Desktop only. Requires a TopK account and API key. TopK is a paid service; new accounts get $10 of
-> free credits. Indexing costs about $0.13 per 1,000 pages, and the plugin shows an estimate before
-> uploading.
+The plugin uses [TopK](https://topk.io)'s hosted multimodal embeddings (topk-embed-v1), which read
+each page as an image. Charts, diagrams, tables, screenshots and scans are searchable without OCR.
+
+> Desktop only, Obsidian 1.11.4 or later. Requires a TopK account and API key. TopK is a paid
+> service; new accounts get $10 of free credits. Indexing costs about $0.13 per 1,000 pages, and the
+> plugin shows an estimate before uploading.
+
+## How well it finds pages
+
+We ran 100 queries over 35 openly licensed papers and slide decks (1,026 pages) and checked whether
+each setup returns the page the query describes. Half the queries are specific; half are vague,
+half-remembered descriptions of 3–8 words, such as "physics toy used to show object boundaries".
+
+![The same vague query in each setup](docs/images/benchmark-hero.png)
+
+<!-- benchmark-table:start -->
+
+| Setup                                               | Vague: page found first | Vague: in top 5 | Specific: found first |
+| --------------------------------------------------- | ----------------------: | --------------: | --------------------: |
+| Text search (Omnisearch with Text Extractor)        |                      4% |             26% |                   40% |
+| **TopK Visual Search** (topk-embed-v1, page images) |                 **48%** |         **74%** |               **98%** |
+
+<!-- benchmark-table:end -->
+
+On vague queries, most of TopK's misses land on a neighbouring page of the right document. Its
+weakest category is charts described by what they mean rather than how they look. The answers are
+drafts written for this benchmark; see [bench/README.md](bench/README.md) for the method and
+caveats, and run it yourself with `npm run bench:fetch` and `npm run bench`.
+
+## Install
+
+**With BRAT** (until the plugin is in the community store):
+
+1. In Obsidian, install and enable **BRAT** from Settings → Community plugins → Browse.
+2. Command palette → **BRAT: Add a beta plugin for testing**, enter `davidmyriel/obsidian-topk`,
+   and pick the latest version.
+3. Enable **TopK Visual Search** under Settings → Community plugins.
+
+**By hand:** download `main.js`, `manifest.json` and `styles.css` from the
+[latest release](https://github.com/davidmyriel/obsidian-topk/releases/latest) into
+`<your vault>/.obsidian/plugins/topk-visual-search/`, then enable the plugin.
 
 ## Use
 
-1. Install the plugin (see below) and open **Settings → TopK Visual Search**.
-2. Add your TopK API key (stored in Obsidian's secret storage), pick your region, and click
-   **Test connection**.
-3. Run **Index vault** from the command palette. The first time, the plugin shows how many pages it
-   will upload and waits for you to confirm. Progress shows in the status bar, with a Cancel link.
-4. Run **Visual search** (or click the ribbon icon), describe the page, and press Enter. Click a
+1. Open **Settings → TopK Visual Search**. Add your TopK API key (stored in Obsidian's secret
+   storage), pick your region, and click **Test connection**.
+2. Run **Index vault** from the command palette. The first time, the plugin shows how many pages it
+   will upload and what that costs, and waits for you to confirm. Progress shows in the status bar,
+   with a Cancel link.
+3. Run **Visual search** (or click the ribbon icon), describe the page, and press Enter. Click a
    result to open the PDF at that page.
-5. **Save results as note** writes the results as `[[file.pdf#page=N]]` links.
+4. **Save results as note** writes the results as links to each page.
 
 After the first index, the plugin keeps the index up to date on its own: a few seconds after you
-add, change, rename or delete a PDF or image, and when Obsidian starts (turn off **Index
-automatically** in settings to do it by hand). Running **Index vault** only uploads files whose
-content changed, and removes pages of files you deleted or excluded. Renaming or moving files costs nothing, because pages are identified by a
-hash of the file content.
+add, change, rename or delete a PDF or image, and when Obsidian starts. Turn off **Index
+automatically** in settings to do it by hand. Only files whose content changed are uploaded again.
+Renaming or moving files costs nothing, because pages are identified by a hash of the file content.
+Tall images such as long screenshots are split into page-sized tiles.
 
-Other commands: **Show index status** (what's indexed, skipped or failed, with Retry), **Rebuild index** (re-uploads everything with the current settings), **Remove my
-data from TopK**, and **Clear local index**.
+Other commands: **Show index status** (what's indexed, skipped or failed, with Retry), **Rebuild
+index** (re-uploads everything with the current settings), **Remove my data from TopK**, and
+**Clear local index**.
 
 Indexed file types: PDF, PNG, JPEG and WebP.
 
 ## Network use and privacy
 
 The plugin connects only to the TopK endpoint for your region. It uploads an image of each page,
-which TopK stores in your collection so it can be searched, and the text of your queries. File names
-and folder paths never leave your device. There is no telemetry. See [docs/PRIVACY.md](docs/PRIVACY.md).
+which TopK stores in your collection so it can be searched, and the text of your queries. Images are
+redrawn before upload, so photo metadata such as GPS location is not sent. File names and folder
+paths never leave your device. There is no telemetry. See [docs/PRIVACY.md](docs/PRIVACY.md).
 
 Run **Remove my data from TopK** before uninstalling: the id that finds this vault's pages lives in
 the plugin folder, which uninstalling deletes.
 
-## Install the beta
+Because page images are stored with a cloud service, don't index documents you are not allowed to
+share with one: client or patient records, or material under NDA. Use **Exclude patterns** to keep
+such folders out.
 
-Beta builds install through BRAT; see [docs/BETA.md](docs/BETA.md).
-
-## Install for testing
-
-Until the plugin is in the community store:
+## Develop
 
 ```bash
 npm ci
 npm run build
 ```
 
-Then copy `main.js`, `manifest.json` and `styles.css` into
-`<your vault>/.obsidian/plugins/topk-visual-search/` and enable the plugin under
-**Settings → Community plugins**.
-
-## Develop
-
-| Command                    | What it does                                                                     |
-| -------------------------- | -------------------------------------------------------------------------------- |
-| `npm run dev`              | Rebuilds `main.js` on change                                                     |
-| `npm run check`            | Lint, typecheck, unit, integration and contract tests, build                     |
-| `npm run test:e2e`         | Boots real Obsidian (minimum and latest) with the fixture vault and a mock TopK  |
-| `npm run test:live`        | Indexes the fixture vault into a throwaway TopK collection; needs `TOPK_API_KEY` |
-| `npx tsx scripts/smoke.ts` | Stage 0 smoke test against live TopK                                             |
+| Command               | What it does                                                                     |
+| --------------------- | -------------------------------------------------------------------------------- |
+| `npm run dev`         | Rebuilds `main.js` on change                                                     |
+| `npm run check`       | Lint, typecheck, unit, integration and contract tests, build                     |
+| `npm run test:e2e`    | Boots real Obsidian (minimum and latest) with the fixture vault and a mock TopK  |
+| `npm run test:live`   | Indexes the fixture vault into a throwaway TopK collection; needs `TOPK_API_KEY` |
+| `npm run bench:fetch` | Downloads the benchmark corpus                                                   |
+| `npm run bench`       | Runs the benchmark; see [bench/README.md](bench/README.md)                       |
 
 Design notes are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and the decisions in
 [docs/adr](docs/adr).
+
+## License
+
+[MIT](LICENSE)

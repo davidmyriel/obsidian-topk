@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-topk-visual-search",
-	"version": "0.0.1",
+	"version": "1.0.0",
 	"description": "Find the exact PDF page or image in your vault from a plain-language query, powered by TopK.",
 	"main": "main.js",
 	"type": "module",
@@ -17,6 +17,7 @@
 		"test:e2e": "npm run build && wdio run ./wdio.conf.mts",
 		"bench": "tsx bench/runners/index.ts",
 		"bench:fetch": "tsx bench/fetch.ts",
+		"bench:hero": "tsx bench/hero.ts",
 		"bench:labels": "tsx bench/labels.ts",
 		"proto": "buf generate vendor/topk-protos",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
