@@ -71,6 +71,8 @@ export default defineConfig(
 		],
 		languageOptions: { globals: { ...globals.node, ...globals.mocha } },
 		rules: {
+			// Node code: Obsidian's requestUrl and window globals do not exist here.
+			'no-restricted-globals': 'off',
 			'obsidianmd/rule-custom-message': 'off',
 			'obsidianmd/prefer-window-timers': 'off',
 			'import/no-extraneous-dependencies': 'off',
