@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0]
+
 ### Improved
 
 - Searches of one or two words also match file names, so "map" finds `Larousse world map.jpg` even
