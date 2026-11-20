@@ -36,7 +36,7 @@ Some details:
 Code, benchmark and corpus: https://github.com/davidmyriel/obsidian-topk
 Write-up: **[blog link]**
 
-**[Confirm before posting:]** Disclosure: I work on TopK, and this runs on TopK's API.
+Disclosure: I work on TopK, and this runs on TopK's API.
 
 ## r/ObsidianMD
 
