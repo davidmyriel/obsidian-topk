@@ -27,3 +27,4 @@ coverage
 bench/report/*
 !bench/report/.gitkeep
 .env
+bench/corpus/
