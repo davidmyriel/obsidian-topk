@@ -1,6 +1,6 @@
 # Spike F: TopK keyword index for exact text matching
 
-Date: 2026-11-20. Script: `scripts/spike-f-keyword.ts` (live TopK, aws-us-east-1-elastica; it
+Date: 2026-11-20. Script: `scripts/spikes/spike-f-keyword.ts` (live TopK, aws-us-east-1-elastica; it
 creates and deletes a throwaway collection). Answers the "verify" list in ADR-006.
 
 ## Setup

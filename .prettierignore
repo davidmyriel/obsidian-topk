@@ -4,6 +4,6 @@ package-lock.json
 src/topk/gen
 vendor
 tests/fixtures
-PLAN.md
+docs/PLAN.md
 .obsidian-cache
 .claude

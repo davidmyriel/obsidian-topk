@@ -120,7 +120,7 @@ First beta, for testers installing through BRAT (see docs/BETA.md).
   search and delete (`src/topk/requests.ts`), `scripts/smoke.ts` with `--record` for live fixtures,
   and contract tests that activate once fixtures are recorded. ADR-002 "Embedding and schema"
   (proposed).
-- Spike C: rendering measurements in Node and inside Obsidian (`scripts/spike-c-render.ts`), DOM
+- Spike C: rendering measurements in Node and inside Obsidian (`scripts/spikes/spike-c-render.ts`), DOM
   canvas factory for Obsidian (`src/util/domCanvas.ts`). ADR-003 "Render settings" (proposed).
 - Spike D: WebdriverIO + `wdio-obsidian-service` e2e harness booting Obsidian 1.11.4 and latest with
   the fixture vault, opt-in in-Obsidian spike specs, and a Linux `xvfb` e2e job in CI.

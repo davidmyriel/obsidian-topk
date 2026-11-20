@@ -12,7 +12,7 @@ image limit. Each canvas is released (`width = height = 0`) and each page cleane
   `canvas.toBlob('image/jpeg')`). Run inside real Obsidian by `tests/e2e/spikes.e2e.ts`
   (`E2E_SPIKES=1 npm run test:e2e`). Obsidian 1.14.5 and 1.11.4 both bundle **pdf.js 5.3.34**.
 - **Node:** `pdfjs-dist` 6.4.299 with `@napi-rs/canvas` (`tests/support/node-render.ts`), by
-  `scripts/spike-c-render.ts <file> <longSide>`, one process per run.
+  `scripts/spikes/spike-c-render.ts <file> <longSide>`, one process per run.
 
 Documents: the fixture `Talks/talk.pdf` (3 slides, 960×540 pt) and, locally only, a 16-page arXiv
 paper (`layout-parser-paper.pdf`, US Letter) for denser pages. The paper is not committed.

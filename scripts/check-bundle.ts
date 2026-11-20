@@ -1,4 +1,4 @@
-// Guards on the shipped main.js (PLAN.md "CI/CD" and "Security and privacy"):
+// Guards on the shipped main.js (docs/PLAN.md "CI/CD" and "Security and privacy"):
 // - size under 1.5 MB;
 // - the only network hosts are TopK's regional endpoints (and placeholder text in help messages);
 // - no eval or new Function.

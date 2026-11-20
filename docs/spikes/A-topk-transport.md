@@ -31,7 +31,7 @@ can the plugin call TopK's HTTP API through `requestUrl`?
 5. **A small pure-TypeScript gRPC client works.** `src/topk/grpc.ts` frames protobuf messages and
    sends them over Node's built-in `http2` module. The codec is generated from TopK's own `.proto`
    files (vendored in `vendor/topk-protos`, MIT) with `@bufbuild/protobuf` 2.16.0, which has no
-   `eval` or `new Function`. Results of `npx tsx scripts/spike-a-transport.ts <region>`:
+   `eval` or `new Function`. Results of `npx tsx scripts/spikes/spike-a-transport.ts <region>`:
 
     | Region                    | Key     | Result                                     | Time   |
     | ------------------------- | ------- | ------------------------------------------ | ------ |

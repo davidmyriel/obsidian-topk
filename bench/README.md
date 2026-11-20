@@ -1,6 +1,6 @@
 # Benchmark
 
-The Stage 3 benchmark (PLAN.md) runs the same queries through several search setups and reports
+The Stage 3 benchmark (docs/PLAN.md) runs the same queries through several search setups and reports
 page-level accuracy. This folder holds the corpus manifest and the scripts.
 
 ## Corpus
@@ -48,7 +48,7 @@ Each line holds the query, its tier and category, and a drafted answer (`file`, 
 with `status: "draft"`.
 
 The drafts were written by Claude from rendered pages and checked against look-alike pages in the
-same files. PLAN.md asks for two people to label every query independently, so the drafts are not
+same files. docs/PLAN.md asks for two people to label every query independently, so the drafts are not
 ground truth yet:
 
 1. `npm run bench:labels -- sheet` writes `labels/sheet.md`, the queries without answers.

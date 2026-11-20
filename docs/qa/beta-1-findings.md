@@ -11,16 +11,11 @@ non-Latin handwriting) are not reported.
 
 ## How to run the reproductions
 
-The Node reproductions now pass and live in `tests/integration/beta-1-regressions.test.ts`, which
-runs with `npm test`. References below to `tests/qa/beta-1-findings.test.ts` point to that file.
-The e2e reproductions are kept as written:
-
-```bash
-npm run build && OBSIDIAN_VERSIONS=latest npx wdio run ./wdio.conf.mts --spec tests/e2e/qa/links.qa.ts --spec tests/e2e/qa/stale-paths.qa.ts --spec tests/e2e/qa/maintenance-race.qa.ts
-```
-
-The e2e files end in `.qa.ts`, not `.e2e.ts`, so the normal `npm run test:e2e` suite does not pick
-them up.
+All findings below are fixed. The Node reproductions live in
+`tests/integration/beta-1-regressions.test.ts`, and the e2e ones were adapted into the regular suite:
+`tests/e2e/links.e2e.ts` (F7, F8) and `tests/e2e/maintenance.e2e.ts` (F9, F10). Both run with
+`npm test` and `npm run test:e2e`. References below to `tests/qa/beta-1-findings.test.ts` and
+`tests/e2e/qa/*.qa.ts` are to the original reproductions, which have since been removed.
 
 ## Findings, by severity
 
