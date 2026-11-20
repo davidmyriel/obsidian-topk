@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-topk-visual-search",
-	"version": "2.0.0",
+	"version": "2.1.0",
 	"description": "Find the exact PDF page or image in your vault from a plain-language query, powered by TopK.",
 	"main": "main.js",
 	"type": "module",
