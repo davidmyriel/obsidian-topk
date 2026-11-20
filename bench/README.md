@@ -64,25 +64,30 @@ npm run bench
 ```
 
 `npm run bench` runs every query through each setup and writes `bench/report/report.md`,
-`results.json` and `recall.svg`. Pick setups with `npm run bench -- --setup bm25,topk`.
+`results.json` and `recall.svg`. Pick setups with `npm run bench -- --setup bm25,topk,gemini-1p,gemini-6p`.
 
-| Setup  | What it reproduces                                                                   | Needs          |
-| ------ | ------------------------------------------------------------------------------------ | -------------- |
-| `bm25` | Omnisearch with Text Extractor: the pdf.js text layer per page, ranked by MiniSearch | nothing        |
-| `topk` | This plugin: its own indexing code and search, topk-embed-v1, one entry per page     | `TOPK_API_KEY` |
+| Setup       | What it reproduces                                                                    | Needs            |
+| ----------- | ------------------------------------------------------------------------------------- | ---------------- |
+| `bm25`      | Omnisearch with Text Extractor: the pdf.js text layer per page, ranked by MiniSearch  | nothing          |
+| `topk`      | This plugin: its own indexing code and search, topk-embed-v1, one entry per page      | `TOPK_API_KEY`   |
+| `gemini-1p` | LLM Hub at its best setting: Gemini Embedding 2 over 1-page PDF chunks, cosine search | `GEMINI_API_KEY` |
+| `gemini-6p` | LLM Hub's default: Gemini Embedding 2 over 6-page PDF chunks                          | `GEMINI_API_KEY` |
 
 The TopK setup reads `TOPK_API_KEY` (and optional `TOPK_REGION`, `TOPK_BENCH_COLLECTION`) from
 the environment or a git-ignored `.env` at the repo root. It indexes into the collection
 `bench-visual-search` under the vault id `bench`, which costs about $0.08 the first time. It keeps
 its index state in `bench/report/`, so reruns only search.
 
+The Gemini setups cut each PDF into 1- or 6-page PDFs with pdf-lib, embed them with
+`gemini-embedding-2` (`RETRIEVAL_DOCUMENT`), embed queries as text (`RETRIEVAL_QUERY`) and rank by
+cosine similarity. Embeddings are cached in `bench/report/`. The 6-page setup is scored leniently:
+a chunk is one result, and it counts as the right page when it contains it.
+
 Page-level scoring: a result counts when it names the labelled file and page. Recall@k is 1 if the
 page is in the top k, and nDCG@10 and MRR use binary relevance.
 
 ## Still to do
 
-- The Gemini Embedding 2 setups (6-page and 1-page chunks, LLM Hub's defaults). They need a Gemini
-  API key.
 - Handwriting, whiteboard and photo files. The papers and slides cover diagrams, charts, tables
   and plain text, plus screenshots inside slides. Wikimedia Commons was tried, but it throttles
   scripts that do not name a contact in their user agent, so those files were left out for now.
