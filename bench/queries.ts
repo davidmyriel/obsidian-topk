@@ -15,8 +15,11 @@ export interface Query {
 	/** Answer proposed while drafting; replaced by the agreed label once both labellers agree. */
 	answers: Answer[];
 	status: 'draft' | 'labelled';
-	/** specific: names the page's distinctive details; vague: a half-remembered description. */
-	tier: 'specific' | 'vague';
+	/**
+	 * specific: names the page's distinctive details; vague: a half-remembered description;
+	 * exact: built around an identifier or quoted phrase that appears on that page only (ADR-006).
+	 */
+	tier: 'specific' | 'vague' | 'exact';
 	/** For a vague query, the specific query with the same target. */
 	of?: string;
 }

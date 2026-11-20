@@ -38,6 +38,9 @@ two queries:
   3–8 words, with no colours, numbers or names. These are the harder and more realistic tier.
   Several pages can fit a vague query; for now only the original page counts.
 
+- **exact** (`e01`–`e25`): built around an identifier, code or quoted phrase that appears in the
+  text of the target page only (ADR-006). One phrase exists only inside a screenshot.
+
 Each line holds the query, its tier and category, and a drafted answer (`file`, 1-based `pages`)
 with `status: "draft"`.
 

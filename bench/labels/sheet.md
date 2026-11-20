@@ -105,3 +105,28 @@ without looking at `queries.jsonl`. Record it in `bench/labels/<your initials>.j
 - **v48** (plain_text): how much heat comes from the seafloor
 - **v49** (plain_text): security without a memory management unit
 - **v50** (plain_text): problems driving the robot
+- **e01** (plain_text): Falcon-40B-Instruct model description
+- **e02** (table): bior1.3 wavelet
+- **e03** (table): Autocorr1-11 feature
+- **e04** (plain_text): TGLC light curves
+- **e05** (table): time of conjunction BJD-2457000
+- **e06** (plain_text): NRSRAPID readout pattern
+- **e07** (chart): 99-percentile region in the spectrum fit
+- **e08** (chart): 32x68x160 grid comparison
+- **e09** (plain_text): A10G GPU used for embeddings
+- **e10** (table): F3-Net results
+- **e11** (table): MLDG accuracy
+- **e12** (diagram): memory region 0x80400
+- **e13** (diagram): PPROT secure address range
+- **e14** (plain_text): MR1.1 obfuscator
+- **e15** (plain_text): compile p1.exe then create p2.c
+- **e16** (plain_text): UTF-8 symbols in variable names
+- **e17** (plain_text): SRH recombination model
+- **e18** (plain_text): CANDECOMP/PARAFAC definition
+- **e19** (plain_text): "premature optimization"
+- **e20** (table): Tonnetz feature accuracy
+- **e21** (plain_text): EBV specific epitope
+- **e22** (plain_text): GALEX photometry
+- **e23** (plain_text): SSVEP
+- **e24** (plain_text): "centralized training but decentralized execution"
+- **e25** (screenshot): "Datasets Over Algorithms"
