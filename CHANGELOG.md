@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.1.0]
+
 ### Added
 
 - **Search notes** (off by default). Turn it on in settings to upload your Markdown notes, split
