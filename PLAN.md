@@ -198,7 +198,7 @@ Build these only after launch numbers come in. Each one gets its own ADR, tests 
 | Feature | What the user sees | Depends on |
 | --- | --- | --- |
 | Find similar pages | Right-click a page or image, choose "Find visually similar", get the 10 closest pages | Querying with a page's own vectors. **On hold (Dave, 2026-10-30).** |
-| Hybrid ranking toggle | Text-layer keyword matches fused with vector results; best for exact codes like "INV-2291" | TopK keyword index on the text field |
+| Exact text matching (hybrid ranking) | Quoted phrases and codes like "INV-2291" put pages that contain them first; other queries stay visual. Design: ADR-006 (proposed) | A `-text` collection with a TopK keyword index; spike in ADR-006 |
 | Excalidraw and Canvas | Drawings from the Excalidraw plugin and Canvas files are rendered to PNG and searchable | Excalidraw export API |
 | Match heatmap | The result thumbnail highlights the patches that matched the query | TopK returning per-token MaxSim scores (open question) |
 | Zotero folder | Index a Zotero storage folder outside the vault, results link back to the PDF | Read access outside the vault |
