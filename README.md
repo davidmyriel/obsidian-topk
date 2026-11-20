@@ -61,6 +61,10 @@ caveats, and run it yourself with `npm run bench:fetch` and `npm run bench`.
    result to open the PDF at that page.
 4. **Save results as note** writes the results as links to each page.
 
+Describe pages in a few words ("old world map", "bar chart of rainfall by year"): the image model
+needs more than one word to rank well. One- and two-word searches also match file names on your
+device.
+
 After the first index, the plugin keeps the index up to date on its own: a few seconds after you
 add, change, rename or delete a PDF or image, and when Obsidian starts. Turn off **Index
 automatically** in settings to do it by hand. Only files whose content changed are uploaded again.

@@ -8,6 +8,8 @@ export interface ResolvedResult {
 	kind: PageKind;
 	score: number;
 	contentHash: string;
+	/** Moved up because the file name contains the words of a short query (nameMatch.ts). */
+	nameMatch?: boolean;
 }
 
 /** Link text that opens a PDF at its page, e.g. "Talks/talk.pdf#page=15". Images link to the file. */
